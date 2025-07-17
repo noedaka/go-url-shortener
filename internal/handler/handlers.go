@@ -22,11 +22,17 @@ func (h *Handler) ShortenHandler(w http.ResponseWriter, r *http.Request) {
 		body, err := io.ReadAll(r.Body)
 		if err != nil {
 			http.Error(w, "Bad request", http.StatusBadRequest)
+			return
 		}
 
 		defer r.Body.Close()
 
 		originalURL := string(body)
+
+		if originalURL == "" {
+			http.Error(w, "Bad request", http.StatusBadRequest)
+			return
+		}
 
 		shortID, err := h.service.ShortenURL(originalURL)
 		if err != nil {
