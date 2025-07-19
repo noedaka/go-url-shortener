@@ -16,7 +16,7 @@ func main() {
 
 	r.Route("/", func(r chi.Router) {
 		r.Post("/*", handlerURL.ShortenURLHandler)
-		r.Get("/{id}", handlerURL.ShortIdHandler)
+		r.Get("/{id}", handlerURL.ShortIDHandler)
 	})
 
 	err := http.ListenAndServe(`:8080`, r)

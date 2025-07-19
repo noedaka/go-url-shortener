@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"io"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -21,11 +22,18 @@ func (h *Handler) ShortenURLHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	originalURL := chi.URLParam(r, "*")
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, "Error reading body", http.StatusBadRequest)
+	}
+
+	defer r.Body.Close()
+
+	originalURL := string(body)
 
 	shortID, err := h.service.ShortenURL(originalURL)
 	if err != nil {
-		http.Error(w, "Bad request", http.StatusBadRequest)
+		http.Error(w, "Error shortening url", http.StatusBadRequest)
 		return
 	}
 
@@ -36,7 +44,7 @@ func (h *Handler) ShortenURLHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(shortURL))
 }
 
-func (h *Handler) ShortIdHandler(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) ShortIDHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -46,7 +54,7 @@ func (h *Handler) ShortIdHandler(w http.ResponseWriter, r *http.Request) {
 
 	URL, err := h.service.GetURL(shortID)
 	if err != nil {
-		http.Error(w, "Bad request", http.StatusBadRequest)
+		http.Error(w, "Error getting url from id", http.StatusBadRequest)
 		return
 	}
 

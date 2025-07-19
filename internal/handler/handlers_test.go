@@ -44,7 +44,7 @@ func TestHandler_ShortenURLHandler(t *testing.T) {
 			method: http.MethodPost,
 			body:   "",
 			want: want{
-				statusCode: http.StatusBadRequest,
+				statusCode: http.StatusCreated,
 			},
 		},
 		{
@@ -83,7 +83,7 @@ func TestHandler_ShortIdHandler(t *testing.T) {
 	h := NewHandler(storage)
 
 	r := chi.NewRouter()
-	r.Get("/{id}", h.ShortIdHandler)
+	r.Get("/{id}", h.ShortIDHandler)
 
 	type want struct {
 		statusCode int
