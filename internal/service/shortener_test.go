@@ -11,7 +11,7 @@ func TestURLStorage(t *testing.T) {
 		wantErr bool
 	}{
 		{"Valid URL", "https://example.com", false},
-		{"Empty URL", "", false}, 
+		{"Empty URL", "", true},
 	}
 
 	storage := NewURLStorage()
