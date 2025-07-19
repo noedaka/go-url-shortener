@@ -33,10 +33,6 @@ func (s *URLStorage) GetURL(shortID string) (string, error) {
 }
 
 func (s *URLStorage) ShortenURL(originalURL string) (string, error) {
-	if originalURL == "" {
-		return "", errors.New("empty URL")
-	}
-
 	shortID := generateShortID()
 	err := s.saveShortID(shortID, originalURL)
 	return shortID, err
