@@ -24,8 +24,8 @@ func TestURLStorage(t *testing.T) {
 				return
 			}
 
-			if !tt.wantErr && len(shortID) != shortIDLenght {
-				t.Errorf("ShortenURL() got len = %d, want %d", len(shortID), shortIDLenght)
+			if !tt.wantErr && len(shortID) != shortIDLength {
+				t.Errorf("ShortenURL() got len = %d, want %d", len(shortID), shortIDLength)
 			}
 
 			if !tt.wantErr {
@@ -53,8 +53,8 @@ func TestGenerateShortID(t *testing.T) {
 	id1 := generateShortID()
 	id2 := generateShortID()
 
-	if len(id1) != shortIDLenght {
-		t.Errorf("Wrong length: got %d, want %d", len(id1), shortIDLenght)
+	if len(id1) != shortIDLength {
+		t.Errorf("Wrong length: got %d, want %d", len(id1), shortIDLength)
 	}
 
 	if id1 == id2 {

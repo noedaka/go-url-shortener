@@ -17,7 +17,13 @@ func main() {
 	cfg := config.Init()
 	flag.Parse()
 
-	log.Printf("Server is on %s", cfg.ServerAdress)
+	err := cfg.ValidateConfig()
+
+	if err != nil {
+		log.Fatalf("Configuration error: %v", err)
+	}
+
+	log.Printf("Server is on %s", cfg.ServerAddress)
 	log.Printf("Base URL is %s", cfg.BaseURL)
 
 	service := service.NewURLStorage()
@@ -28,8 +34,8 @@ func main() {
 		r.Get("/{id}", handlerURL.ShortIDHandler)
 	})
 
-	err := http.ListenAndServe(cfg.ServerAdress, r)
+	err = http.ListenAndServe(cfg.ServerAddress, r)
 	if err != nil {
-		panic(err)
+		log.Fatalf("Fatal server error: %v", err)
 	}
 }

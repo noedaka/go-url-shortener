@@ -2,22 +2,64 @@ package handler
 
 import (
 	"bytes"
+	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"testing"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/noedaka/go-url-shortener/internal/service"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
+type MockStorage struct {
+	urls   map[string]string
+	lastID string
+	err    error
+}
+
+func NewMockStorage() *MockStorage {
+	return &MockStorage{
+		urls: make(map[string]string),
+	}
+}
+
+func (m *MockStorage) GetURL(shortID string) (string, error) {
+	if m.err != nil {
+		return "", m.err
+	}
+	url, exists := m.urls[shortID]
+	if !exists {
+		return "", errors.New("URL not found")
+	}
+	return url, nil
+}
+
+func (m *MockStorage) ShortenURL(originalURL string) (string, error) {
+	if m.err != nil {
+		return "", m.err
+	}
+
+	id := "testID_" + strconv.Itoa(len(m.urls)+1)
+	m.urls[id] = originalURL
+	m.lastID = id
+	return id, nil
+}
+
+func (m *MockStorage) SetError(err error) {
+	m.err = err
+}
+
+func (m *MockStorage) AddURL(shortID, originalURL string) {
+	m.urls[shortID] = originalURL
+}
+
 func TestHandler_ShortenURLHandler(t *testing.T) {
-	storage := service.NewURLStorage()
-	h := NewHandler(storage, "http://localhost:8080")
+	mockStorage := NewMockStorage()
+	h := NewHandler(mockStorage, "http://localhost:8080")
 
 	r := chi.NewRouter()
-	r.Post("/*", h.ShortenURLHandler)
+	r.Post("/", h.ShortenURLHandler)
 
 	type want struct {
 		statusCode int
@@ -58,29 +100,23 @@ func TestHandler_ShortenURLHandler(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			req := httptest.NewRequest(tt.method, "/"+tt.body, bytes.NewBufferString(tt.body))
+			req := httptest.NewRequest(tt.method, "/", bytes.NewBufferString(tt.body))
 			req.Header.Set("Content-Type", "text/plain")
-
-			req.Host = "localhost:8080"
 			rr := httptest.NewRecorder()
 
 			r.ServeHTTP(rr, req)
 
-			require.Equal(t, tt.want.statusCode, rr.Code, "Wrong status code: Got %d, expected %d",
-				rr.Code, tt.want.statusCode)
-
+			assert.Equal(t, tt.want.statusCode, rr.Code)
 			if tt.want.contains != "" {
-				assert.Contains(t, rr.Body.String(), tt.want.contains, "Wrong answer: Got %s, expected %s",
-					rr.Body.String(), tt.want.contains)
+				assert.Contains(t, rr.Body.String(), tt.want.contains)
 			}
-
 		})
 	}
 }
 
 func TestHandler_ShortIdHandler(t *testing.T) {
-	storage := service.NewURLStorage()
-	h := NewHandler(storage, "http://localhost:8080")
+	mockStorage := NewMockStorage()
+	h := NewHandler(mockStorage, "http://localhost:8080")
 
 	r := chi.NewRouter()
 	r.Get("/{id}", h.ShortIDHandler)
@@ -91,15 +127,19 @@ func TestHandler_ShortIdHandler(t *testing.T) {
 	}
 
 	tests := []struct {
-		name   string
-		method string
-		path   string
-		want   want
+		name    string
+		method  string
+		id      string
+		prepare func()
+		want    want
 	}{
 		{
 			name:   "GET valid",
 			method: http.MethodGet,
-			path:   "/",
+			id:     "validID",
+			prepare: func() {
+				mockStorage.AddURL("validID", "https://example.com")
+			},
 			want: want{
 				statusCode: http.StatusTemporaryRedirect,
 				location:   "https://example.com",
@@ -108,47 +148,30 @@ func TestHandler_ShortIdHandler(t *testing.T) {
 		{
 			name:   "GET nonexistent id",
 			method: http.MethodGet,
-			path:   "/nonexistentid",
+			id:     "invalidID",
 			want: want{
 				statusCode: http.StatusBadRequest,
-			},
-		},
-		{
-			name:   "Wrong method",
-			method: http.MethodPut,
-			path:   "/nonexistentid",
-			want: want{
-				statusCode: http.StatusMethodNotAllowed,
 			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var req *http.Request
+			mockStorage.err = nil
 
-			if tt.want.location != "" {
-				shortID, err := storage.ShortenURL(tt.want.location)
-				require.NoError(t, err, "Failed to shorten URL")
-				req = httptest.NewRequest(tt.method, "/"+shortID, nil)
-			} else {
-				req = httptest.NewRequest(tt.method, tt.path, nil)
+			if tt.prepare != nil {
+				tt.prepare()
 			}
 
-			req.Host = "localhost:8080"
+			req := httptest.NewRequest(tt.method, "/"+tt.id, nil)
 			rr := httptest.NewRecorder()
 
 			r.ServeHTTP(rr, req)
 
-			require.Equal(t, tt.want.statusCode, rr.Code, "Wrong status code: Got %d, expected %d",
-				rr.Code, tt.want.statusCode)
-
+			assert.Equal(t, tt.want.statusCode, rr.Code)
 			if tt.want.location != "" {
-				recLocation := rr.Header().Get("Location")
-				assert.Equal(t, tt.want.location, recLocation, "Wrong location header:"+
-					"Got %s,  expected %s", tt.want.location, recLocation)
+				assert.Equal(t, tt.want.location, rr.Header().Get("Location"))
 			}
-
 		})
 	}
 }

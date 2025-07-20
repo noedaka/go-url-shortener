@@ -9,20 +9,15 @@ import (
 )
 
 type Handler struct {
-	service *service.URLStorage
+	service service.URLStorer
 	baseURL string
 }
 
-func NewHandler(service *service.URLStorage, baseURL string) *Handler {
+func NewHandler(service service.URLStorer, baseURL string) *Handler {
 	return &Handler{service: service, baseURL: baseURL}
 }
 
 func (h *Handler) ShortenURLHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		http.Error(w, "Error reading body", http.StatusBadRequest)
@@ -46,11 +41,6 @@ func (h *Handler) ShortenURLHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) ShortIDHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
 	shortID := chi.URLParam(r, "id")
 
 	URL, err := h.service.GetURL(shortID)
