@@ -11,7 +11,7 @@ func Init() *Config {
 	cfg := &Config{}
 
 	flag.StringVar(&cfg.ServerAdress, "a", "localhost:8080", "HTTP server adress")
-	flag.StringVar(&cfg.BaseURL, "b", "http://localhost8080", "Base URL")
+	flag.StringVar(&cfg.BaseURL, "b", "http://localhost:8080", "Base URL")
 
 	return cfg
 }
