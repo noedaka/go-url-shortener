@@ -14,7 +14,7 @@ import (
 
 func TestHandler_ShortenURLHandler(t *testing.T) {
 	storage := service.NewURLStorage()
-	h := NewHandler(storage)
+	h := NewHandler(storage, "http://localhost:8080")
 
 	r := chi.NewRouter()
 	r.Post("/*", h.ShortenURLHandler)
@@ -80,7 +80,7 @@ func TestHandler_ShortenURLHandler(t *testing.T) {
 
 func TestHandler_ShortIdHandler(t *testing.T) {
 	storage := service.NewURLStorage()
-	h := NewHandler(storage)
+	h := NewHandler(storage, "http://localhost:8080")
 
 	r := chi.NewRouter()
 	r.Get("/{id}", h.ShortIDHandler)

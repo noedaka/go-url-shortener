@@ -10,10 +10,11 @@ import (
 
 type Handler struct {
 	service *service.URLStorage
+	baseURL string
 }
 
-func NewHandler(service *service.URLStorage) *Handler {
-	return &Handler{service: service}
+func NewHandler(service *service.URLStorage, baseURL string) *Handler {
+	return &Handler{service: service, baseURL: baseURL}
 }
 
 func (h *Handler) ShortenURLHandler(w http.ResponseWriter, r *http.Request) {
@@ -37,7 +38,7 @@ func (h *Handler) ShortenURLHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	shortURL := "http://" + r.Host + "/" + shortID
+	shortURL := h.baseURL + "/" + shortID
 
 	w.Header().Set("Content-type", "text/plain")
 	w.WriteHeader(http.StatusCreated)
