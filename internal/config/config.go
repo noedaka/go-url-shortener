@@ -28,12 +28,15 @@ func Init() *Config {
 		log.Fatal(err)
 	}
 
-	if cfg.ServerAddress == "" {
-		flag.StringVar(&cfg.ServerAddress, "a", defaultServerAddress, "HTTP server adress")
-	}
+	flag.StringVar(&cfg.ServerAddress, "a", cfg.ServerAddress, "HTTP server adress")
+	flag.StringVar(&cfg.BaseURL, "b", cfg.BaseURL, "Base URL")
+	flag.Parse()
 
+	if cfg.ServerAddress == "" {
+		cfg.ServerAddress = defaultServerAddress
+	}
 	if cfg.BaseURL == "" {
-		flag.StringVar(&cfg.BaseURL, "b", defaultBaseURL, "Base URL")
+		cfg.BaseURL = defaultBaseURL
 	}
 
 	return cfg

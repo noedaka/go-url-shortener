@@ -1,7 +1,6 @@
 package app
 
 import (
-	"flag"
 	"log"
 	"net/http"
 
@@ -15,7 +14,6 @@ func Run() error {
 	r := chi.NewRouter()
 
 	cfg := config.Init()
-	flag.Parse()
 
 	if err := cfg.ValidateConfig(); err != nil {
 		return err
