@@ -11,13 +11,15 @@ import (
 )
 
 type Config struct {
-	ServerAddress string `env:"SERVER_ADDRESS"`
-	BaseURL       string `env:"BASE_URL"`
+	ServerAddress   string `env:"SERVER_ADDRESS"`
+	BaseURL         string `env:"BASE_URL"`
+	FileStoragePath string `env:"FILE_STORAGE_PATH"`
 }
 
 const (
-	defaultServerAddress = "localhost:8080"
-	defaultBaseURL       = "http://localhost:8080"
+	defaultServerAddress   = "localhost:8080"
+	defaultBaseURL         = "http://localhost:8080"
+	defaultFileStoragePath = "urls.json"
 )
 
 func Init() *Config {
@@ -30,6 +32,7 @@ func Init() *Config {
 
 	flag.StringVar(&cfg.ServerAddress, "a", cfg.ServerAddress, "HTTP server adress")
 	flag.StringVar(&cfg.BaseURL, "b", cfg.BaseURL, "Base URL")
+	flag.StringVar(&cfg.BaseURL, "f", cfg.BaseURL, "File strage path")
 	flag.Parse()
 
 	if cfg.ServerAddress == "" {
@@ -37,6 +40,9 @@ func Init() *Config {
 	}
 	if cfg.BaseURL == "" {
 		cfg.BaseURL = defaultBaseURL
+	}
+	if cfg.FileStoragePath == "" {
+		cfg.FileStoragePath = defaultFileStoragePath
 	}
 
 	return cfg

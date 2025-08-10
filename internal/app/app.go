@@ -9,6 +9,7 @@ import (
 	"github.com/noedaka/go-url-shortener/internal/logger"
 	"github.com/noedaka/go-url-shortener/internal/middleware"
 	"github.com/noedaka/go-url-shortener/internal/service"
+	"github.com/noedaka/go-url-shortener/internal/storage"
 )
 
 func Run() error {
@@ -26,8 +27,10 @@ func Run() error {
 
 	logger.Log.Sugar().Infof("Server is on %s", cfg.ServerAddress)
 	logger.Log.Sugar().Infof("Base URL is %s", cfg.BaseURL)
+	logger.Log.Sugar().Infof("Base file storage is %s", cfg.FileStoragePath)
 
-	service := service.NewURLStorage()
+	fileStorage := storage.NewFileStorage(cfg.FileStoragePath)
+	service := service.NewURLStorage(fileStorage)
 	handlerURL := handler.NewHandler(service, cfg.BaseURL)
 
 	r.Route("/", func(r chi.Router) {

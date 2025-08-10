@@ -5,6 +5,8 @@ import (
 	"math/rand"
 	"sync"
 	"time"
+
+	"github.com/noedaka/go-url-shortener/internal/storage"
 )
 
 const shortIDLength = 6
@@ -16,14 +18,22 @@ type URLStorer interface {
 }
 
 type urlStorage struct {
-	mu   sync.RWMutex      // Для потокобезопасности мапы
-	urls map[string]string // ключ - ID; значение - ориг URL
+	mu      sync.RWMutex
+	urls    map[string]string
+	storage storage.URLStorage
 }
 
-func NewURLStorage() URLStorer {
-	return &urlStorage{
-		urls: make(map[string]string),
+func NewURLStorage(storage storage.URLStorage) URLStorer {
+	s := &urlStorage{
+		urls:    make(map[string]string),
+		storage: storage,
 	}
+
+	if data, err := storage.Load(); err == nil {
+		s.urls = data
+	}
+
+	return s
 }
 
 func (s *urlStorage) GetURL(shortID string) (string, error) {
@@ -69,11 +79,10 @@ func (s *urlStorage) isShortIDUnique(shortID string) bool {
 
 func (s *urlStorage) saveShortID(shortID, originalURL string) error {
 	s.mu.Lock()
-	defer s.mu.Unlock()
-
 	s.urls[shortID] = originalURL
+	s.mu.Unlock()
 
-	return nil
+	return s.storage.Save(shortID, originalURL)
 }
 
 func generateShortID() string {

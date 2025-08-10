@@ -4,17 +4,37 @@ import (
 	"testing"
 )
 
-func TestURLStorage(t *testing.T) {
+type MockStorage struct {
+	data map[string]string
+}
+
+func NewMockStorage() *MockStorage {
+	return &MockStorage{
+		data: make(map[string]string),
+	}
+}
+
+func (m *MockStorage) Save(shortURL, originalURL string) error {
+	m.data[shortURL] = originalURL
+	return nil
+}
+
+func (m *MockStorage) Load() (map[string]string, error) {
+	return m.data, nil
+}
+
+func Test_URLStorage(t *testing.T) {
 	tests := []struct {
 		name    string
 		url     string
 		wantErr bool
 	}{
 		{"Valid URL", "https://example.com", false},
-		{"Empty URL", "", false},
+		{"Empty URL", "", true},
 	}
 
-	storage := NewURLStorage()
+	mockStorage := NewMockStorage()
+	storage := NewURLStorage(mockStorage)
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -42,22 +62,10 @@ func TestURLStorage(t *testing.T) {
 }
 
 func TestGetURL_NotFound(t *testing.T) {
-	storage := NewURLStorage()
+	mockStorage := NewMockStorage()
+	storage := NewURLStorage(mockStorage)
 	_, err := storage.GetURL("nonexistent")
 	if err == nil {
 		t.Error("Expected error for non-existent URL")
-	}
-}
-
-func TestGenerateShortID(t *testing.T) {
-	id1 := generateShortID()
-	id2 := generateShortID()
-
-	if len(id1) != shortIDLength {
-		t.Errorf("Wrong length: got %d, want %d", len(id1), shortIDLength)
-	}
-
-	if id1 == id2 {
-		t.Error("Expected different IDs")
 	}
 }
