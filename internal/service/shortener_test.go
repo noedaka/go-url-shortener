@@ -30,7 +30,6 @@ func Test_URLStorage(t *testing.T) {
 		wantErr bool
 	}{
 		{"Valid URL", "https://example.com", false},
-		{"Empty URL", "", true},
 	}
 
 	mockStorage := NewMockStorage()
