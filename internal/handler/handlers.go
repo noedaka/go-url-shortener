@@ -38,7 +38,7 @@ func (h *Handler) ShortenURLHandler(w http.ResponseWriter, r *http.Request) {
 
 	shortURL := h.baseURL + "/" + shortID
 
-	w.Header().Set("Content-type", "text/plain")
+	w.Header().Set("Content-Type", "text/plain")
 	w.WriteHeader(http.StatusCreated)
 	w.Write([]byte(shortURL))
 }
@@ -63,7 +63,7 @@ func (h *Handler) APIShortenerHandler(w http.ResponseWriter, r *http.Request) {
 		Result: shortURL,
 	}
 
-	w.Header().Set("Content-type", "application/json")
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 
 	enc := json.NewEncoder(w)
