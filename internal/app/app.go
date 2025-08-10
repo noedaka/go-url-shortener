@@ -32,6 +32,7 @@ func Run() error {
 
 	r.Route("/", func(r chi.Router) {
 		r.Use(middleware.LoggingMiddleware)
+		r.Use(middleware.GzipMiddleware)
 		r.Post("/api/shorten", handlerURL.APIShortenerHandler)
 		r.Post("/*", handlerURL.ShortenURLHandler)
 		r.Get("/{id}", handlerURL.ShortIDHandler)
