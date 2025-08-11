@@ -1,0 +1,49 @@
+package app
+
+import (
+	"net/http"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/noedaka/go-url-shortener/internal/config"
+	"github.com/noedaka/go-url-shortener/internal/handler"
+	"github.com/noedaka/go-url-shortener/internal/logger"
+	"github.com/noedaka/go-url-shortener/internal/middleware"
+	"github.com/noedaka/go-url-shortener/internal/service"
+	"github.com/noedaka/go-url-shortener/internal/storage"
+)
+
+func Run() error {
+	r := chi.NewRouter()
+
+	if err := logger.Init(); err != nil {
+		return err
+	}
+	logger.Log.Sync()
+
+	cfg := config.Init()
+	if err := cfg.ValidateConfig(); err != nil {
+		return err
+	}
+
+	logger.Log.Sugar().Infof("Server is on %s", cfg.ServerAddress)
+	logger.Log.Sugar().Infof("Base URL is %s", cfg.BaseURL)
+	logger.Log.Sugar().Infof("Base file storage is %s", cfg.FileStoragePath)
+
+	fileStorage := storage.NewFileStorage(cfg.FileStoragePath)
+	service := service.NewURLStorage(fileStorage)
+	handlerURL := handler.NewHandler(service, cfg.BaseURL)
+
+	r.Route("/", func(r chi.Router) {
+		r.Use(middleware.LoggingMiddleware)
+		r.Use(middleware.GzipMiddleware)
+		r.Post("/api/shorten", handlerURL.APIShortenerHandler)
+		r.Post("/", handlerURL.ShortenURLHandler)
+		r.Get("/{id}", handlerURL.ShortIDHandler)
+	})
+
+	if err := http.ListenAndServe(cfg.ServerAddress, r); err != nil {
+		return err
+	}
+
+	return nil
+}
