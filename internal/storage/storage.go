@@ -2,6 +2,7 @@ package storage
 
 import (
 	"encoding/json"
+	"io"
 	"os"
 	"sync"
 
@@ -34,18 +35,13 @@ func (fs *FileStorage) Save(shortURL, originalURL string) error {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
-	records, err := fs.readAll()
-	if err != nil {
-		return err
-	}
-
-	records = append(records, Record{
+	record := Record{
 		UUID:        uuid.New().String(),
 		ShortURL:    shortURL,
 		OriginalURL: originalURL,
-	})
+	}
 
-	return fs.writeAll(records)
+	return fs.appendRecord(record)
 }
 
 func (fs *FileStorage) Load() (map[string]string, error) {
@@ -87,11 +83,37 @@ func (fs *FileStorage) readAll() ([]Record, error) {
 	return records, nil
 }
 
-func (fs *FileStorage) writeAll(records []Record) error {
-	data, err := json.MarshalIndent(records, "", "  ")
+func (fs *FileStorage) appendRecord(record Record) error {
+	file, err := os.OpenFile(fs.filePath, os.O_RDWR|os.O_CREATE, 0644)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	stat, err := file.Stat()
 	if err != nil {
 		return err
 	}
 
-	return os.WriteFile(fs.filePath, data, 0644)
+	if stat.Size() == 0 {
+		if _, err := file.Write([]byte("[\n")); err != nil {
+			return err
+		}
+	} else {
+		if _, err := file.Seek(-1, io.SeekEnd); err != nil {
+			return err
+		}
+		if _, err := file.Write([]byte(",\n")); err != nil {
+			return err
+		}
+	}
+
+	encoder := json.NewEncoder(file)
+	encoder.SetIndent("", "  ")
+	if err := encoder.Encode(record); err != nil {
+		return err
+	}
+
+	_, err = file.Write([]byte("]"))
+	return err
 }

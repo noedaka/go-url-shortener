@@ -37,7 +37,7 @@ func Run() error {
 		r.Use(middleware.LoggingMiddleware)
 		r.Use(middleware.GzipMiddleware)
 		r.Post("/api/shorten", handlerURL.APIShortenerHandler)
-		r.Post("/*", handlerURL.ShortenURLHandler)
+		r.Post("/", handlerURL.ShortenURLHandler)
 		r.Get("/{id}", handlerURL.ShortIDHandler)
 	})
 

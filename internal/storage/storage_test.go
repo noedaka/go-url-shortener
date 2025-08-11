@@ -3,6 +3,8 @@ package storage
 import (
 	"os"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 const testFilePath = "test_storage.json"
@@ -56,17 +58,12 @@ func TestMultipleSaves(t *testing.T) {
 	fs := NewFileStorage(testFilePath)
 	defer cleanup()
 
-	_ = fs.Save("k1", "v1")
-	_ = fs.Save("k2", "v2")
+	assert.NoError(t, fs.Save("k1", "v1"), "Save k1 failed")
+	assert.NoError(t, fs.Save("k2", "v2"), "Save k2 failed")
 
 	data, err := fs.Load()
-	if err != nil {
-		t.Errorf("Load failed: %v", err)
-	}
-
-	if len(data) != 2 {
-		t.Errorf("Expected 2 items, got %d", len(data))
-	}
+	assert.NoError(t, err, "Load failed")
+	assert.Equal(t, 2, len(data), "Expected 2 items")
 }
 
 func TestSaveEmptyValues(t *testing.T) {

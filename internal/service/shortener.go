@@ -12,7 +12,7 @@ import (
 const shortIDLength = 6
 const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 
-type URLStorer interface {
+type ShortenerService interface {
 	GetURL(shortID string) (string, error)
 	ShortenURL(originalURL string) (string, error)
 }
@@ -23,7 +23,7 @@ type urlStorage struct {
 	storage storage.URLStorage
 }
 
-func NewURLStorage(storage storage.URLStorage) URLStorer {
+func NewURLStorage(storage storage.URLStorage) ShortenerService {
 	s := &urlStorage{
 		urls:    make(map[string]string),
 		storage: storage,

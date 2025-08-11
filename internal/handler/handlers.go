@@ -11,11 +11,11 @@ import (
 )
 
 type Handler struct {
-	service service.URLStorer
+	service service.ShortenerService
 	baseURL string
 }
 
-func NewHandler(service service.URLStorer, baseURL string) *Handler {
+func NewHandler(service service.ShortenerService, baseURL string) *Handler {
 	return &Handler{service: service, baseURL: baseURL}
 }
 
@@ -68,7 +68,7 @@ func (h *Handler) APIShortenerHandler(w http.ResponseWriter, r *http.Request) {
 
 	enc := json.NewEncoder(w)
 	if err := enc.Encode(resp); err != nil {
-		http.Error(w, "error encoding response", http.StatusBadRequest)
+		http.Error(w, "error encoding response", http.StatusInternalServerError)
 		return
 	}
 }
