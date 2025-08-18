@@ -1,9 +1,11 @@
 package app
 
 import (
+	"database/sql"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/noedaka/go-url-shortener/internal/config"
 	"github.com/noedaka/go-url-shortener/internal/handler"
 	"github.com/noedaka/go-url-shortener/internal/logger"
@@ -28,10 +30,17 @@ func Run() error {
 	logger.Log.Sugar().Infof("Server is on %s", cfg.ServerAddress)
 	logger.Log.Sugar().Infof("Base URL is %s", cfg.BaseURL)
 	logger.Log.Sugar().Infof("Base file storage is %s", cfg.FileStoragePath)
+	logger.Log.Sugar().Infof("Base Database DSN is %s", cfg.DatabaseDSN)
+
+	db, err := sql.Open("pgx", cfg.DatabaseDSN)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
 
 	fileStorage := storage.NewFileStorage(cfg.FileStoragePath)
 	service := service.NewURLStorage(fileStorage)
-	handlerURL := handler.NewHandler(service, cfg.BaseURL)
+	handlerURL := handler.NewHandler(service, cfg.BaseURL, db)
 
 	r.Route("/", func(r chi.Router) {
 		r.Use(middleware.LoggingMiddleware)
@@ -39,6 +48,7 @@ func Run() error {
 		r.Post("/api/shorten", handlerURL.APIShortenerHandler)
 		r.Post("/", handlerURL.ShortenURLHandler)
 		r.Get("/{id}", handlerURL.ShortIDHandler)
+		r.Get("/ping", handlerURL.PingDBHandler)
 	})
 
 	if err := http.ListenAndServe(cfg.ServerAddress, r); err != nil {
