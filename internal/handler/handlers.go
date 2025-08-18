@@ -1,9 +1,12 @@
 package handler
 
 import (
+	"context"
+	"database/sql"
 	"encoding/json"
 	"io"
 	"net/http"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/noedaka/go-url-shortener/internal/model"
@@ -13,10 +16,11 @@ import (
 type Handler struct {
 	service service.ShortenerService
 	baseURL string
+	db      *sql.DB
 }
 
-func NewHandler(service service.ShortenerService, baseURL string) *Handler {
-	return &Handler{service: service, baseURL: baseURL}
+func NewHandler(service service.ShortenerService, baseURL string, db *sql.DB) *Handler {
+	return &Handler{service: service, baseURL: baseURL, db: db}
 }
 
 func (h *Handler) ShortenURLHandler(w http.ResponseWriter, r *http.Request) {
@@ -84,4 +88,13 @@ func (h *Handler) ShortIDHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Location", URL)
 	w.WriteHeader(http.StatusTemporaryRedirect)
+}
+
+func (h *Handler) PingDBHandler(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+	if err := h.db.PingContext(ctx); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+	}
+	w.WriteHeader(http.StatusOK)
 }

@@ -56,7 +56,7 @@ func (m *MockStorage) AddURL(shortID, originalURL string) {
 
 func TestHandler_ShortenURLHandler(t *testing.T) {
 	mockStorage := NewMockStorage()
-	h := NewHandler(mockStorage, "http://localhost:8080")
+	h := NewHandler(mockStorage, "http://localhost:8080", nil)
 
 	r := chi.NewRouter()
 	r.Post("/", h.ShortenURLHandler)
@@ -116,7 +116,7 @@ func TestHandler_ShortenURLHandler(t *testing.T) {
 
 func TestHandler_ShortIdHandler(t *testing.T) {
 	mockStorage := NewMockStorage()
-	h := NewHandler(mockStorage, "http://localhost:8080")
+	h := NewHandler(mockStorage, "http://localhost:8080", nil)
 
 	r := chi.NewRouter()
 	r.Get("/{id}", h.ShortIDHandler)
@@ -178,7 +178,7 @@ func TestHandler_ShortIdHandler(t *testing.T) {
 
 func TestHandler_APIShortenerHandler(t *testing.T) {
 	mockStorage := NewMockStorage()
-	h := NewHandler(mockStorage, "http://localhost:8080")
+	h := NewHandler(mockStorage, "http://localhost:8080", nil)
 
 	r := chi.NewRouter()
 	r.Post("/api/shorten", h.APIShortenerHandler)
@@ -203,7 +203,7 @@ func TestHandler_APIShortenerHandler(t *testing.T) {
 			want: want{
 				statusCode:  http.StatusCreated,
 				contentType: "application/json",
-				contains:   `"result":"http://localhost:8080/testID_1"`,
+				contains:    `"result":"http://localhost:8080/testID_1"`,
 			},
 		},
 		{
@@ -245,11 +245,11 @@ func TestHandler_APIShortenerHandler(t *testing.T) {
 			r.ServeHTTP(rr, req)
 
 			assert.Equal(t, tt.want.statusCode, rr.Code)
-			
+
 			if tt.want.contentType != "" {
 				assert.Equal(t, tt.want.contentType, rr.Header().Get("Content-type"))
 			}
-			
+
 			if tt.want.contains != "" {
 				assert.Contains(t, rr.Body.String(), tt.want.contains)
 			}

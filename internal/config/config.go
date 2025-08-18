@@ -14,12 +14,14 @@ type Config struct {
 	ServerAddress   string `env:"SERVER_ADDRESS"`
 	BaseURL         string `env:"BASE_URL"`
 	FileStoragePath string `env:"FILE_STORAGE_PATH"`
+	DatabaseDSN     string `env:"DATABASE_DSN"`
 }
 
 const (
 	defaultServerAddress   = "localhost:8080"
 	defaultBaseURL         = "http://localhost:8080"
 	defaultFileStoragePath = "urls.json"
+	defaultDatabaseDSN     = "postgres://postgres:admin@localhost:5432/url_shortener?sslmode=disable"
 )
 
 func Init() *Config {
@@ -32,7 +34,8 @@ func Init() *Config {
 
 	flag.StringVar(&cfg.ServerAddress, "a", cfg.ServerAddress, "HTTP server adress")
 	flag.StringVar(&cfg.BaseURL, "b", cfg.BaseURL, "Base URL")
-	flag.StringVar(&cfg.BaseURL, "f", cfg.BaseURL, "File strage path")
+	flag.StringVar(&cfg.FileStoragePath, "f", cfg.FileStoragePath, "File storage path")
+	flag.StringVar(&cfg.DatabaseDSN, "d", cfg.DatabaseDSN, "Database DSN")
 	flag.Parse()
 
 	if cfg.ServerAddress == "" {
@@ -43,6 +46,9 @@ func Init() *Config {
 	}
 	if cfg.FileStoragePath == "" {
 		cfg.FileStoragePath = defaultFileStoragePath
+	}
+	if cfg.DatabaseDSN == "" {
+		cfg.DatabaseDSN = defaultDatabaseDSN
 	}
 
 	return cfg
