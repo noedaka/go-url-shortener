@@ -175,3 +175,84 @@ func TestHandler_ShortIdHandler(t *testing.T) {
 		})
 	}
 }
+
+func TestHandler_APIShortenerHandler(t *testing.T) {
+	mockStorage := NewMockStorage()
+	h := NewHandler(mockStorage, "http://localhost:8080")
+
+	r := chi.NewRouter()
+	r.Post("/api/shorten", h.APIShortenerHandler)
+
+	type want struct {
+		statusCode  int
+		contentType string
+		contains    string
+	}
+
+	tests := []struct {
+		name    string
+		method  string
+		body    string
+		prepare func(s *MockStorage)
+		want    want
+	}{
+		{
+			name:   "POST valid JSON",
+			method: http.MethodPost,
+			body:   `{"url": "https://example.com"}`,
+			want: want{
+				statusCode:  http.StatusCreated,
+				contentType: "application/json",
+				contains:   `"result":"http://localhost:8080/testID_1"`,
+			},
+		},
+		{
+			name:   "POST invalid JSON",
+			method: http.MethodPost,
+			body:   `invalid json`,
+			want: want{
+				statusCode: http.StatusBadRequest,
+			},
+		},
+		{
+			name:   "Wrong method",
+			method: http.MethodPut,
+			want: want{
+				statusCode: http.StatusMethodNotAllowed,
+			},
+		},
+		{
+			name:    "Service error",
+			method:  http.MethodPost,
+			body:    `{"url": "https://example.com"}`,
+			prepare: func(s *MockStorage) { s.SetError(errors.New("service error")) },
+			want: want{
+				statusCode: http.StatusBadRequest,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.prepare != nil {
+				tt.prepare(mockStorage)
+			}
+
+			req := httptest.NewRequest(tt.method, "/api/shorten", bytes.NewBufferString(tt.body))
+			req.Header.Set("Content-Type", "application/json")
+			rr := httptest.NewRecorder()
+
+			r.ServeHTTP(rr, req)
+
+			assert.Equal(t, tt.want.statusCode, rr.Code)
+			
+			if tt.want.contentType != "" {
+				assert.Equal(t, tt.want.contentType, rr.Header().Get("Content-type"))
+			}
+			
+			if tt.want.contains != "" {
+				assert.Contains(t, rr.Body.String(), tt.want.contains)
+			}
+		})
+	}
+}

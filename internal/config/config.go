@@ -3,36 +3,55 @@ package config
 import (
 	"flag"
 	"fmt"
+	"log"
 	"net"
 	"net/url"
+
+	"github.com/caarlos0/env/v6"
 )
 
 type Config struct {
-	ServerAddress string
-	BaseURL       string
+	ServerAddress   string `env:"SERVER_ADDRESS"`
+	BaseURL         string `env:"BASE_URL"`
+	FileStoragePath string `env:"FILE_STORAGE_PATH"`
 }
+
+const (
+	defaultServerAddress   = "localhost:8080"
+	defaultBaseURL         = "http://localhost:8080"
+	defaultFileStoragePath = "urls.json"
+)
 
 func Init() *Config {
 	cfg := &Config{}
 
-	flag.StringVar(&cfg.ServerAddress, "a", "localhost:8080", "HTTP server adress")
-	flag.StringVar(&cfg.BaseURL, "b", "http://localhost:8080", "Base URL")
+	err := env.Parse(cfg)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	flag.StringVar(&cfg.ServerAddress, "a", cfg.ServerAddress, "HTTP server adress")
+	flag.StringVar(&cfg.BaseURL, "b", cfg.BaseURL, "Base URL")
+	flag.StringVar(&cfg.BaseURL, "f", cfg.BaseURL, "File strage path")
+	flag.Parse()
+
+	if cfg.ServerAddress == "" {
+		cfg.ServerAddress = defaultServerAddress
+	}
+	if cfg.BaseURL == "" {
+		cfg.BaseURL = defaultBaseURL
+	}
+	if cfg.FileStoragePath == "" {
+		cfg.FileStoragePath = defaultFileStoragePath
+	}
 
 	return cfg
 }
 
 func (cfg *Config) ValidateConfig() error {
-	if cfg.ServerAddress == "" {
-		return fmt.Errorf("server address cannot be empty")
-	}
-
 	_, _, err := net.SplitHostPort(cfg.ServerAddress)
 	if err != nil {
 		return fmt.Errorf("invalid server address format: %w", err)
-	}
-
-	if cfg.BaseURL == "" {
-		return fmt.Errorf("base URL cannot be empty")
 	}
 
 	u, err := url.Parse(cfg.BaseURL)
