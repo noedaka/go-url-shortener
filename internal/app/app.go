@@ -39,7 +39,10 @@ func Run() error {
 	var store storage.URLStorage
 
 	if isDB {
-		store = storage.NewPostgresStorage(db)
+		store, err = storage.NewPostgresStorage(db)
+		if err != nil {
+			return err
+		}
 
 		logger.Log.Sugar().Infof("Base Database DSN is %s", cfg.DatabaseDSN)
 	} else {
