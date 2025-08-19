@@ -22,25 +22,34 @@ func Run() error {
 	}
 	logger.Log.Sync()
 
-	cfg := config.Init()
+	cfg, isDB := config.Init()
 	if err := cfg.ValidateConfig(); err != nil {
 		return err
 	}
 
 	logger.Log.Sugar().Infof("Server is on %s", cfg.ServerAddress)
 	logger.Log.Sugar().Infof("Base URL is %s", cfg.BaseURL)
-	logger.Log.Sugar().Infof("Base file storage is %s", cfg.FileStoragePath)
-	logger.Log.Sugar().Infof("Base Database DSN is %s", cfg.DatabaseDSN)
 
-	db, err := sql.Open("pgx", cfg.DatabaseDSN)
-	if err != nil {
-		return err
+	var db *sql.DB = nil
+	var store storage.URLStorage
+
+	if isDB {
+		db, err := sql.Open("pgx", cfg.DatabaseDSN)
+		if err != nil {
+			return err
+		}
+		defer db.Close()
+
+		store = storage.NewPostgresStorage(db)
+
+		logger.Log.Sugar().Infof("Base Database DSN is %s", cfg.DatabaseDSN)
+	} else {
+		store = storage.NewFileStorage(cfg.FileStoragePath)
+		logger.Log.Sugar().Infof("Base file storage is %s", cfg.FileStoragePath)
 	}
-	defer db.Close()
 
-	fileStorage := storage.NewFileStorage(cfg.FileStoragePath)
-	service := service.NewURLStorage(fileStorage)
-	handlerURL := handler.NewHandler(service, cfg.BaseURL, db)
+	service := service.NewShortenerService(store)
+	handlerURL := handler.NewHandler(*service, cfg.BaseURL, db)
 
 	r.Route("/", func(r chi.Router) {
 		r.Use(middleware.LoggingMiddleware)

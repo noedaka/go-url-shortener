@@ -21,10 +21,9 @@ const (
 	defaultServerAddress   = "localhost:8080"
 	defaultBaseURL         = "http://localhost:8080"
 	defaultFileStoragePath = "urls.json"
-	defaultDatabaseDSN     = "postgres://postgres:admin@localhost:5432/url_shortener?sslmode=disable"
 )
 
-func Init() *Config {
+func Init() (*Config, bool) {
 	cfg := &Config{}
 
 	err := env.Parse(cfg)
@@ -44,14 +43,16 @@ func Init() *Config {
 	if cfg.BaseURL == "" {
 		cfg.BaseURL = defaultBaseURL
 	}
+
+	if cfg.DatabaseDSN != "" {
+		return cfg, true
+	}
+
 	if cfg.FileStoragePath == "" {
 		cfg.FileStoragePath = defaultFileStoragePath
 	}
-	if cfg.DatabaseDSN == "" {
-		cfg.DatabaseDSN = defaultDatabaseDSN
-	}
 
-	return cfg
+	return cfg, false
 }
 
 func (cfg *Config) ValidateConfig() error {
