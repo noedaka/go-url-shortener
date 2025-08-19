@@ -14,6 +14,7 @@ type Config struct {
 	ServerAddress   string `env:"SERVER_ADDRESS"`
 	BaseURL         string `env:"BASE_URL"`
 	FileStoragePath string `env:"FILE_STORAGE_PATH"`
+	DatabaseDSN     string `env:"DATABASE_DSN"`
 }
 
 const (
@@ -22,7 +23,7 @@ const (
 	defaultFileStoragePath = "urls.json"
 )
 
-func Init() *Config {
+func Init() (*Config, bool) {
 	cfg := &Config{}
 
 	err := env.Parse(cfg)
@@ -32,7 +33,8 @@ func Init() *Config {
 
 	flag.StringVar(&cfg.ServerAddress, "a", cfg.ServerAddress, "HTTP server adress")
 	flag.StringVar(&cfg.BaseURL, "b", cfg.BaseURL, "Base URL")
-	flag.StringVar(&cfg.BaseURL, "f", cfg.BaseURL, "File strage path")
+	flag.StringVar(&cfg.FileStoragePath, "f", cfg.FileStoragePath, "File storage path")
+	flag.StringVar(&cfg.DatabaseDSN, "d", cfg.DatabaseDSN, "Database DSN")
 	flag.Parse()
 
 	if cfg.ServerAddress == "" {
@@ -41,11 +43,16 @@ func Init() *Config {
 	if cfg.BaseURL == "" {
 		cfg.BaseURL = defaultBaseURL
 	}
+
+	if cfg.DatabaseDSN != "" {
+		return cfg, true
+	}
+
 	if cfg.FileStoragePath == "" {
 		cfg.FileStoragePath = defaultFileStoragePath
 	}
 
-	return cfg
+	return cfg, false
 }
 
 func (cfg *Config) ValidateConfig() error {
