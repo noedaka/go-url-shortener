@@ -37,6 +37,8 @@ func Init() (*Config, bool) {
 	flag.StringVar(&cfg.DatabaseDSN, "d", cfg.DatabaseDSN, "Database DSN")
 	flag.Parse()
 
+	cfg.DatabaseDSN = "postgres://postgres:admin@localhost:5432/url_shortener?sslmode=disable"
+
 	if cfg.ServerAddress == "" {
 		cfg.ServerAddress = defaultServerAddress
 	}

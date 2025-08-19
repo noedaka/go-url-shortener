@@ -30,16 +30,15 @@ func Run() error {
 	logger.Log.Sugar().Infof("Server is on %s", cfg.ServerAddress)
 	logger.Log.Sugar().Infof("Base URL is %s", cfg.BaseURL)
 
-	var db *sql.DB = nil
+	db, err := sql.Open("pgx", cfg.DatabaseDSN)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
 	var store storage.URLStorage
 
 	if isDB {
-		db, err := sql.Open("pgx", cfg.DatabaseDSN)
-		if err != nil {
-			return err
-		}
-		defer db.Close()
-
 		store = storage.NewPostgresStorage(db)
 
 		logger.Log.Sugar().Infof("Base Database DSN is %s", cfg.DatabaseDSN)
