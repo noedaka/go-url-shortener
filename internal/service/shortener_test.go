@@ -5,12 +5,14 @@ import (
 )
 
 type MockStorage struct {
-	data map[string]string
+	data    map[string]string
+	baseURL string
 }
 
 func NewMockStorage() *MockStorage {
 	return &MockStorage{
-		data: make(map[string]string),
+		data:    make(map[string]string),
+		baseURL: "",
 	}
 }
 
@@ -39,7 +41,7 @@ func TestShortenerService(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockStorage := NewMockStorage()
-			service := NewShortenerService(mockStorage)
+			service := NewShortenerService(mockStorage, "")
 
 			shortID, err := service.ShortenURL(tt.url)
 			if (err != nil) != tt.wantErr {
@@ -66,7 +68,7 @@ func TestShortenerService(t *testing.T) {
 
 func TestGetURL_NotFound(t *testing.T) {
 	mockStorage := NewMockStorage()
-	service := NewShortenerService(mockStorage)
+	service := NewShortenerService(mockStorage, "")
 	_, err := service.GetURL("nonexistent")
 	if err == nil {
 		t.Error("Expected error for non-existent URL")

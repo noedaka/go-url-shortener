@@ -50,13 +50,14 @@ func Run() error {
 		logger.Log.Sugar().Infof("Base file storage is %s", cfg.FileStoragePath)
 	}
 
-	service := service.NewShortenerService(store)
-	handlerURL := handler.NewHandler(*service, cfg.BaseURL, db)
+	service := service.NewShortenerService(store, cfg.BaseURL)
+	handlerURL := handler.NewHandler(*service, db)
 
 	r.Route("/", func(r chi.Router) {
 		r.Use(middleware.LoggingMiddleware)
 		r.Use(middleware.GzipMiddleware)
 		r.Post("/api/shorten", handlerURL.APIShortenerHandler)
+		r.Post("/api/shorten/batch", handlerURL.ShortenBatchHandler)
 		r.Post("/", handlerURL.ShortenURLHandler)
 		r.Get("/{id}", handlerURL.ShortIDHandler)
 		r.Get("/ping", handlerURL.PingDBHandler)

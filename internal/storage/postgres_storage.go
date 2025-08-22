@@ -9,22 +9,21 @@ type PostgresStorage struct {
 }
 
 func NewPostgresStorage(db *sql.DB) (*PostgresStorage, error) {
-    _, err := db.Exec(`
+	_, err := db.Exec(`
         CREATE TABLE IF NOT EXISTS urls (
 			id SERIAL PRIMARY KEY,
 			short_url TEXT NOT NULL,
 			original_url TEXT NOT NULL
         )
     `)
-    if err != nil {
-        return nil, err
-    }
+	if err != nil {
+		return nil, err
+	}
 
 	return &PostgresStorage{db: db}, nil
 }
 
 func (ps *PostgresStorage) Save(shortURL, originalURL string) error {
-
 	_, err := ps.db.Exec("INSERT INTO urls (short_url, original_url) VALUES ($1, $2)",
 		shortURL, originalURL)
 

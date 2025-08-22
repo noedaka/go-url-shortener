@@ -15,12 +15,11 @@ import (
 
 type Handler struct {
 	service service.ShortenerService
-	baseURL string
 	db      *sql.DB
 }
 
-func NewHandler(service service.ShortenerService, baseURL string, db *sql.DB) *Handler {
-	return &Handler{service: service, baseURL: baseURL, db: db}
+func NewHandler(service service.ShortenerService, db *sql.DB) *Handler {
+	return &Handler{service: service, db: db}
 }
 
 func (h *Handler) ShortenURLHandler(w http.ResponseWriter, r *http.Request) {
@@ -40,7 +39,7 @@ func (h *Handler) ShortenURLHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	shortURL := h.baseURL + "/" + shortID
+	shortURL := h.service.BaseURL + "/" + shortID
 
 	w.Header().Set("Content-Type", "text/plain")
 	w.WriteHeader(http.StatusCreated)
@@ -61,7 +60,7 @@ func (h *Handler) APIShortenerHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	shortURL := h.baseURL + "/" + shortID
+	shortURL := h.service.BaseURL + "/" + shortID
 
 	resp := model.Response{
 		Result: shortURL,
@@ -97,4 +96,33 @@ func (h *Handler) PingDBHandler(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 	}
 	w.WriteHeader(http.StatusOK)
+}
+
+func (h *Handler) ShortenBatchHandler(w http.ResponseWriter, r *http.Request) {
+	var batchRequest []model.BatchRequest
+
+	if err := json.NewDecoder(r.Body).Decode(&batchRequest); err != nil {
+		http.Error(w, "cannot decode request JSON body", http.StatusBadRequest)
+		return
+	}
+
+	if len(batchRequest) == 0 {
+		http.Error(w, "empty JSON body", http.StatusBadRequest)
+		return
+	}
+
+	batchResponse, err := h.service.ShortenMultipleURLS(batchRequest)
+	if err != nil {
+		http.Error(w, "cannot shorten multiple urls", http.StatusBadRequest)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+
+	enc := json.NewEncoder(w)
+	if err := enc.Encode(batchResponse); err != nil {
+		http.Error(w, "error encoding response", http.StatusInternalServerError)
+		return
+	}
 }
