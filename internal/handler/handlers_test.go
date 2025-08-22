@@ -2,20 +2,21 @@ package handler
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
-	"strconv"
 	"testing"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/noedaka/go-url-shortener/internal/model"
+	"github.com/noedaka/go-url-shortener/internal/service"
 	"github.com/stretchr/testify/assert"
 )
 
 type MockStorage struct {
-	urls   map[string]string
-	lastID string
-	err    error
+	urls map[string]string
+	err  error
 }
 
 func NewMockStorage() *MockStorage {
@@ -24,26 +25,27 @@ func NewMockStorage() *MockStorage {
 	}
 }
 
-func (m *MockStorage) GetURL(shortID string) (string, error) {
+func (m *MockStorage) Save(shortURL, originalURL string) error {
+	if m.err != nil {
+		return m.err
+	}
+	m.urls[shortURL] = originalURL
+	return nil
+}
+
+func (m *MockStorage) Get(shortURL string) (string, error) {
 	if m.err != nil {
 		return "", m.err
 	}
-	url, exists := m.urls[shortID]
+	url, exists := m.urls[shortURL]
 	if !exists {
 		return "", errors.New("URL not found")
 	}
 	return url, nil
 }
 
-func (m *MockStorage) ShortenURL(originalURL string) (string, error) {
-	if m.err != nil {
-		return "", m.err
-	}
-
-	id := "testID_" + strconv.Itoa(len(m.urls)+1)
-	m.urls[id] = originalURL
-	m.lastID = id
-	return id, nil
+func (m *MockStorage) Close() error {
+	return nil
 }
 
 func (m *MockStorage) SetError(err error) {
@@ -56,7 +58,8 @@ func (m *MockStorage) AddURL(shortID, originalURL string) {
 
 func TestHandler_ShortenURLHandler(t *testing.T) {
 	mockStorage := NewMockStorage()
-	h := NewHandler(mockStorage, "http://localhost:8080")
+	svc := service.NewShortenerService(mockStorage, "http://localhost:8080")
+	h := NewHandler(*svc, nil)
 
 	r := chi.NewRouter()
 	r.Post("/", h.ShortenURLHandler)
@@ -78,7 +81,7 @@ func TestHandler_ShortenURLHandler(t *testing.T) {
 			body:   "https://example.com",
 			want: want{
 				statusCode: http.StatusCreated,
-				contains:   "http://",
+				contains:   "http://localhost:8080/",
 			},
 		},
 		{
@@ -116,7 +119,8 @@ func TestHandler_ShortenURLHandler(t *testing.T) {
 
 func TestHandler_ShortIdHandler(t *testing.T) {
 	mockStorage := NewMockStorage()
-	h := NewHandler(mockStorage, "http://localhost:8080")
+	svc := service.NewShortenerService(mockStorage, "http://localhost:8080")
+	h := NewHandler(*svc, nil)
 
 	r := chi.NewRouter()
 	r.Get("/{id}", h.ShortIDHandler)
@@ -178,7 +182,8 @@ func TestHandler_ShortIdHandler(t *testing.T) {
 
 func TestHandler_APIShortenerHandler(t *testing.T) {
 	mockStorage := NewMockStorage()
-	h := NewHandler(mockStorage, "http://localhost:8080")
+	svc := service.NewShortenerService(mockStorage, "http://localhost:8080")
+	h := NewHandler(*svc, nil)
 
 	r := chi.NewRouter()
 	r.Post("/api/shorten", h.APIShortenerHandler)
@@ -203,7 +208,7 @@ func TestHandler_APIShortenerHandler(t *testing.T) {
 			want: want{
 				statusCode:  http.StatusCreated,
 				contentType: "application/json",
-				contains:   `"result":"http://localhost:8080/testID_1"`,
+				contains:    `"result":"http://localhost:8080/`,
 			},
 		},
 		{
@@ -245,13 +250,108 @@ func TestHandler_APIShortenerHandler(t *testing.T) {
 			r.ServeHTTP(rr, req)
 
 			assert.Equal(t, tt.want.statusCode, rr.Code)
-			
+
 			if tt.want.contentType != "" {
 				assert.Equal(t, tt.want.contentType, rr.Header().Get("Content-type"))
 			}
-			
+
 			if tt.want.contains != "" {
 				assert.Contains(t, rr.Body.String(), tt.want.contains)
+			}
+		})
+	}
+}
+
+func TestHandler_ShortenBatchHandler(t *testing.T) {
+	mockStorage := NewMockStorage()
+	svc := service.NewShortenerService(mockStorage, "http://localhost:8080")
+	h := NewHandler(*svc, nil)
+
+	r := chi.NewRouter()
+	r.Post("/api/shorten/batch", h.ShortenBatchHandler)
+
+	type want struct {
+		statusCode          int
+		contentType         string
+		contains            string
+		checkCorrelationIDs bool
+		expectedIDs         []string
+	}
+
+	tests := []struct {
+		name   string
+		method string
+		body   string
+		want   want
+	}{
+		{
+			name:   "POST valid batch",
+			method: http.MethodPost,
+			body:   `[{"correlation_id": "test1", "original_url": "https://example.com/1"}, {"correlation_id": "test2", "original_url": "https://example.com/2"}]`,
+			want: want{
+				statusCode:          http.StatusCreated,
+				contentType:         "application/json",
+				checkCorrelationIDs: true,
+				expectedIDs:         []string{"test1", "test2"},
+			},
+		},
+		{
+			name:   "POST empty batch",
+			method: http.MethodPost,
+			body:   `[]`,
+			want: want{
+				statusCode: http.StatusBadRequest,
+				contains:   "empty JSON body",
+			},
+		},
+		{
+			name:   "POST invalid JSON",
+			method: http.MethodPost,
+			body:   `invalid json`,
+			want: want{
+				statusCode: http.StatusBadRequest,
+				contains:   "cannot decode request JSON body",
+			},
+		},
+		{
+			name:   "Wrong method",
+			method: http.MethodGet,
+			body:   `[{"correlation_id": "test1", "original_url": "https://example.com/1"}]`,
+			want: want{
+				statusCode: http.StatusMethodNotAllowed,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest(tt.method, "/api/shorten/batch", bytes.NewBufferString(tt.body))
+			req.Header.Set("Content-Type", "application/json")
+			rr := httptest.NewRecorder()
+
+			r.ServeHTTP(rr, req)
+
+			assert.Equal(t, tt.want.statusCode, rr.Code)
+
+			if tt.want.contains != "" {
+				assert.Contains(t, rr.Body.String(), tt.want.contains)
+			}
+
+			if tt.want.contentType != "" {
+				assert.Equal(t, tt.want.contentType, rr.Header().Get("Content-Type"))
+			}
+
+			if tt.want.checkCorrelationIDs {
+				var responses []model.BatchResponse
+				err := json.Unmarshal(rr.Body.Bytes(), &responses)
+				assert.NoError(t, err)
+
+				assert.Equal(t, len(tt.want.expectedIDs), len(responses))
+
+				for i, expectedID := range tt.want.expectedIDs {
+					assert.Equal(t, expectedID, responses[i].CorrelationID)
+					assert.Contains(t, responses[i].ShortURL, "http://localhost:8080/")
+				}
 			}
 		})
 	}
