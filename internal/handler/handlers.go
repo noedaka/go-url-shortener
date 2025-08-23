@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"time"
@@ -35,6 +36,13 @@ func (h *Handler) ShortenURLHandler(w http.ResponseWriter, r *http.Request) {
 
 	shortID, err := h.service.ShortenURL(originalURL)
 	if err != nil {
+		var uniqueErr *model.UniqueViolationError
+		if errors.As(err, &uniqueErr) {
+			w.Header().Set("Content-Type", "text/plain")
+			w.WriteHeader(http.StatusConflict)
+			w.Write([]byte(h.service.BaseURL + "/" + uniqueErr.ShortID))
+			return
+		}
 		http.Error(w, "cannot shorten url", http.StatusBadRequest)
 		return
 	}
@@ -56,6 +64,13 @@ func (h *Handler) APIShortenerHandler(w http.ResponseWriter, r *http.Request) {
 
 	shortID, err := h.service.ShortenURL(req.URL)
 	if err != nil {
+		var uniqueErr *model.UniqueViolationError
+		if errors.As(err, &uniqueErr) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusConflict)
+			json.NewEncoder(w).Encode(h.service.BaseURL + "/" + uniqueErr.ShortID)
+			return
+		}
 		http.Error(w, "cannot shorten url", http.StatusBadRequest)
 		return
 	}
