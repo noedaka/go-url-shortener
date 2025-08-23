@@ -25,6 +25,14 @@ func NewPostgresStorage(db *sql.DB) (*PostgresStorage, error) {
 		return nil, err
 	}
 
+	_, err = db.Exec(`
+		CREATE UNIQUE INDEX IF NOT EXISTS idx_og_url
+		ON urls (original_url)
+	`)
+	if err != nil {
+		return nil, err
+	}
+
 	return &PostgresStorage{db: db}, nil
 }
 
