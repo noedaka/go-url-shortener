@@ -68,7 +68,12 @@ func (h *Handler) APIShortenerHandler(w http.ResponseWriter, r *http.Request) {
 		if errors.As(err, &uniqueErr) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusConflict)
-			json.NewEncoder(w).Encode(h.service.BaseURL + "/" + uniqueErr.ShortID)
+			shortURL := h.service.BaseURL + "/" + uniqueErr.ShortID
+			
+			resp := model.Response {
+				Result: shortURL,
+			}
+			json.NewEncoder(w).Encode(resp)
 			return
 		}
 		http.Error(w, "cannot shorten url", http.StatusBadRequest)
