@@ -12,7 +12,7 @@ import (
 
 type FileStorage struct {
 	filePath string
-	mu       sync.Mutex
+	mu       sync.RWMutex
 	urls     map[string]string
 }
 
@@ -28,7 +28,8 @@ func NewFileStorage(filePath string) *FileStorage {
 		urls:     make(map[string]string),
 	}
 
-	if data, err := fs.load(); err == nil {
+	data, err := fs.loadData()
+	if err == nil {
 		fs.urls = data
 	}
 
@@ -36,23 +37,26 @@ func NewFileStorage(filePath string) *FileStorage {
 }
 
 func (fs *FileStorage) Save(shortURL, originalURL string) error {
-	fs.mu.Lock()
-	defer fs.mu.Unlock()
-
 	record := record{
 		UUID:        uuid.New().String(),
 		ShortURL:    shortURL,
 		OriginalURL: originalURL,
 	}
 
+	if err := fs.appendRecord(record); err != nil {
+		return err
+	}
+
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
 	fs.urls[shortURL] = originalURL
 
-	return fs.appendRecord(record)
+	return nil
 }
 
 func (fs *FileStorage) Get(shortURL string) (string, error) {
-	fs.mu.Lock()
-	defer fs.mu.Unlock()
+	fs.mu.RLock()
+	defer fs.mu.RUnlock()
 
 	if url, exists := fs.urls[shortURL]; exists {
 		return url, nil
@@ -60,10 +64,7 @@ func (fs *FileStorage) Get(shortURL string) (string, error) {
 	return "", errors.New("URL not found")
 }
 
-func (fs *FileStorage) load() (map[string]string, error) {
-	fs.mu.Lock()
-	defer fs.mu.Unlock()
-
+func (fs *FileStorage) loadData() (map[string]string, error) {
 	records, err := fs.readAll()
 	if err != nil {
 		return nil, err
@@ -87,11 +88,11 @@ func (fs *FileStorage) readAll() ([]record, error) {
 		return nil, err
 	}
 
-	var records []record
 	if len(file) == 0 {
-		return records, nil
+		return []record{}, nil
 	}
 
+	var records []record
 	if err := json.Unmarshal(file, &records); err != nil {
 		return nil, err
 	}
@@ -100,6 +101,11 @@ func (fs *FileStorage) readAll() ([]record, error) {
 }
 
 func (fs *FileStorage) appendRecord(record record) error {
+	// Используем отдельный мьютекс для файловых операций
+	var fileMu sync.Mutex
+	fileMu.Lock()
+	defer fileMu.Unlock()
+
 	file, err := os.OpenFile(fs.filePath, os.O_RDWR|os.O_CREATE, 0644)
 	if err != nil {
 		return err

@@ -36,11 +36,7 @@ func (h *Handler) ShortenURLHandler(w http.ResponseWriter, r *http.Request) {
 
 	shortID, err := h.service.ShortenURL(originalURL)
 	if err != nil {
-		var uniqueErr *model.UniqueViolationError
-		if errors.As(err, &uniqueErr) {
-			w.Header().Set("Content-Type", "text/plain")
-			w.WriteHeader(http.StatusConflict)
-			w.Write([]byte(h.service.BaseURL + "/" + uniqueErr.ShortID))
+		if h.handleShortenError(w, err, "text/plain") {
 			return
 		}
 		http.Error(w, "cannot shorten url", http.StatusBadRequest)
@@ -64,16 +60,7 @@ func (h *Handler) APIShortenerHandler(w http.ResponseWriter, r *http.Request) {
 
 	shortID, err := h.service.ShortenURL(req.URL)
 	if err != nil {
-		var uniqueErr *model.UniqueViolationError
-		if errors.As(err, &uniqueErr) {
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusConflict)
-			shortURL := h.service.BaseURL + "/" + uniqueErr.ShortID
-			
-			resp := model.Response {
-				Result: shortURL,
-			}
-			json.NewEncoder(w).Encode(resp)
+		if h.handleShortenError(w, err, "application/json") {
 			return
 		}
 		http.Error(w, "cannot shorten url", http.StatusBadRequest)
@@ -145,4 +132,25 @@ func (h *Handler) ShortenBatchHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "error encoding response", http.StatusInternalServerError)
 		return
 	}
+}
+
+func (h *Handler) handleShortenError(w http.ResponseWriter, err error, contentType string) (handled bool) {
+    var uniqueErr *model.UniqueViolationError
+    if errors.As(err, &uniqueErr) {
+        shortURL := h.service.BaseURL + "/" + uniqueErr.ShortID
+        
+        if contentType == "application/json" {
+            w.Header().Set("Content-Type", "application/json")
+            w.WriteHeader(http.StatusConflict)
+            resp := model.Response{Result: shortURL}
+            json.NewEncoder(w).Encode(resp)
+        } else {
+            w.Header().Set("Content-Type", "text/plain")
+            w.WriteHeader(http.StatusConflict)
+            w.Write([]byte(shortURL))
+        }
+        return true
+    }
+    
+    return false
 }

@@ -7,6 +7,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/noedaka/go-url-shortener/internal/config"
+	dbc "github.com/noedaka/go-url-shortener/internal/config/db"
 	"github.com/noedaka/go-url-shortener/internal/handler"
 	"github.com/noedaka/go-url-shortener/internal/logger"
 	"github.com/noedaka/go-url-shortener/internal/middleware"
@@ -30,15 +31,21 @@ func Run() error {
 	logger.Log.Sugar().Infof("Server is on %s", cfg.ServerAddress)
 	logger.Log.Sugar().Infof("Base URL is %s", cfg.BaseURL)
 
-	db, err := sql.Open("pgx", cfg.DatabaseDSN)
-	if err != nil {
-		return err
-	}
-	defer db.Close()
-
+	var db *sql.DB
 	var store storage.URLStorage
 
 	if isDB {
+		var err error
+		db, err = sql.Open("pgx", cfg.DatabaseDSN)
+		if err != nil {
+			return err
+		}
+		defer db.Close()
+
+		if err := dbc.InitDatabase(db); err != nil {
+			return err
+		}
+
 		store, err = storage.NewPostgresStorage(db)
 		if err != nil {
 			return err
