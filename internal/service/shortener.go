@@ -1,97 +1,66 @@
 package service
 
 import (
-	"errors"
 	"math/rand"
-	"sync"
 	"time"
 
+	"github.com/noedaka/go-url-shortener/internal/model"
 	"github.com/noedaka/go-url-shortener/internal/storage"
 )
 
-const shortIDLength = 6
-const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-
-type ShortenerService interface {
-	GetURL(shortID string) (string, error)
-	ShortenURL(originalURL string) (string, error)
-}
-
-type urlStorage struct {
-	mu      sync.RWMutex
-	urls    map[string]string
+type ShortenerService struct {
 	storage storage.URLStorage
+	BaseURL string
+	rand    *rand.Rand
 }
 
-func NewURLStorage(storage storage.URLStorage) ShortenerService {
-	s := &urlStorage{
-		urls:    make(map[string]string),
+func NewShortenerService(storage storage.URLStorage, baseURL string) *ShortenerService {
+	return &ShortenerService{
 		storage: storage,
+		BaseURL: baseURL,
+		rand:    rand.New(rand.NewSource(time.Now().UnixNano())),
 	}
-
-	if data, err := storage.Load(); err == nil {
-		s.urls = data
-	}
-
-	return s
 }
 
-func (s *urlStorage) GetURL(shortID string) (string, error) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	url, exists := s.urls[shortID]
-	if !exists {
-		return "", errors.New("URL not found")
-	}
-
-	return url, nil
+func (s *ShortenerService) GetURL(shortID string) (string, error) {
+	return s.storage.Get(shortID)
 }
 
-func (s *urlStorage) ShortenURL(originalURL string) (string, error) {
-	var shortID string
-	attempts := 0
+func (s *ShortenerService) ShortenURL(originalURL string) (string, error) {
+	shortID := s.generateShortID()
+	err := s.storage.Save(shortID, originalURL)
 
-	for {
-		shortID = generateShortID()
+	if err != nil {
+		return "", err
+	}
 
-		if s.isShortIDUnique(shortID) {
-			break
+	return shortID, nil
+}
+
+func (s *ShortenerService) ShortenMultipleURLS(batchRequest []model.BatchRequest) ([]model.BatchResponse, error) {
+	var batchResponse []model.BatchResponse
+	for _, request := range batchRequest {
+		shortURL, err := s.ShortenURL(request.URL)
+		if err != nil {
+			return nil, err
 		}
 
-		attempts++
-		if attempts > 10 {
-			return "", errors.New("failed to generate unique ID after multiple attempts")
+		response := model.BatchResponse{
+			CorrelationID: request.CorrelationID,
+			ShortURL:      s.BaseURL + "/" + shortURL,
 		}
+
+		batchResponse = append(batchResponse, response)
 	}
 
-	err := s.saveShortID(shortID, originalURL)
-	return shortID, err
+	return batchResponse, nil
 }
 
-func (s *urlStorage) isShortIDUnique(shortID string) bool {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	_, exists := s.urls[shortID]
-	return !exists
-}
-
-func (s *urlStorage) saveShortID(shortID, originalURL string) error {
-	s.mu.Lock()
-	s.urls[shortID] = originalURL
-	s.mu.Unlock()
-
-	return s.storage.Save(shortID, originalURL)
-}
-
-func generateShortID() string {
-	globalRand := rand.New(rand.NewSource(time.Now().UnixNano()))
-
-	b := make([]byte, shortIDLength)
+func (s *ShortenerService) generateShortID() string {
+	const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+	b := make([]byte, 6)
 	for i := range b {
-		b[i] = charset[globalRand.Intn(len(charset))]
+		b[i] = charset[s.rand.Intn(len(charset))]
 	}
-
 	return string(b)
 }

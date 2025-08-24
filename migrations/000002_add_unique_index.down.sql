@@ -1,0 +1,1 @@
+DROP INDEX idx_og_url ON urls;
