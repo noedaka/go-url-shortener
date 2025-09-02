@@ -4,6 +4,7 @@ go 1.24.4
 
 require (
 	github.com/go-chi/chi/v5 v5.2.2
+	github.com/golang-jwt/jwt/v4 v4.5.2
 	github.com/jackc/pgx/v5 v5.7.5
 	github.com/stretchr/testify v1.10.0
 )

@@ -26,9 +26,21 @@ func (s *ShortenerService) GetURL(shortID string) (string, error) {
 	return s.storage.Get(shortID)
 }
 
-func (s *ShortenerService) ShortenURL(originalURL string) (string, error) {
+func (s *ShortenerService) GetURLByUser(userID string) ([]model.UrlPair, error) {
+	urlPairs, err := s.storage.GetByUser(userID)
+	if err != nil {
+		return nil, err
+	}
+	for _, pair := range urlPairs {
+		pair.ShortUrl = s.BaseURL + "/" + pair.ShortUrl
+	}
+
+	return urlPairs, nil
+}
+
+func (s *ShortenerService) ShortenURL(originalURL, userID string) (string, error) {
 	shortID := s.generateShortID()
-	err := s.storage.Save(shortID, originalURL)
+	err := s.storage.Save(shortID, originalURL, userID)
 
 	if err != nil {
 		return "", err
@@ -37,10 +49,10 @@ func (s *ShortenerService) ShortenURL(originalURL string) (string, error) {
 	return shortID, nil
 }
 
-func (s *ShortenerService) ShortenMultipleURLS(batchRequest []model.BatchRequest) ([]model.BatchResponse, error) {
+func (s *ShortenerService) ShortenMultipleURLS(batchRequest []model.BatchRequest, userID string) ([]model.BatchResponse, error) {
 	var batchResponse []model.BatchResponse
 	for _, request := range batchRequest {
-		shortURL, err := s.ShortenURL(request.URL)
+		shortURL, err := s.ShortenURL(request.URL, userID)
 		if err != nil {
 			return nil, err
 		}

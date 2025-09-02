@@ -7,7 +7,8 @@ func InitDatabase(db *sql.DB) error {
         CREATE TABLE IF NOT EXISTS urls (
 			id SERIAL PRIMARY KEY,
 			short_url TEXT NOT NULL,
-			original_url TEXT NOT NULL
+			original_url TEXT NOT NULL,
+			user_id TEXT NOT NULL
         )
     `)
 	if err != nil {

@@ -8,6 +8,7 @@ import (
 	"net/url"
 
 	"github.com/caarlos0/env/v6"
+	"github.com/noedaka/go-url-shortener/internal/model"
 )
 
 type Config struct {
@@ -16,6 +17,8 @@ type Config struct {
 	FileStoragePath string `env:"FILE_STORAGE_PATH"`
 	DatabaseDSN     string `env:"DATABASE_DSN"`
 }
+
+const UserIDKey model.ContextKey = "user_id"
 
 const (
 	defaultServerAddress   = "localhost:8080"

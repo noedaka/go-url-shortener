@@ -23,7 +23,7 @@ func TestSaveAndGet(t *testing.T) {
 	defer cleanup()
 	fs := NewFileStorage(testFilePath)
 
-	err := fs.Save("abc", "https://example.com")
+	err := fs.Save("abc", "https://example.com", "")
 	assert.NoError(t, err, "Save failed")
 
 	url, err := fs.Get("abc")
@@ -43,8 +43,8 @@ func TestMultipleSaves(t *testing.T) {
 	defer cleanup()
 	fs := NewFileStorage(testFilePath)
 
-	assert.NoError(t, fs.Save("k1", "v1"), "Save k1 failed")
-	assert.NoError(t, fs.Save("k2", "v2"), "Save k2 failed")
+	assert.NoError(t, fs.Save("k1", "v1", ""), "Save k1 failed")
+	assert.NoError(t, fs.Save("k2", "v2", ""), "Save k2 failed")
 
 	val1, err1 := fs.Get("k1")
 	val2, err2 := fs.Get("k2")
@@ -59,7 +59,7 @@ func TestSaveEmptyValues(t *testing.T) {
 	defer cleanup()
 	fs := NewFileStorage(testFilePath)
 
-	err := fs.Save("", "")
+	err := fs.Save("", "", "")
 	assert.NoError(t, err, "Save with empty values failed")
 
 	val, err := fs.Get("")

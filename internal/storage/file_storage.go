@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"github.com/google/uuid"
+	"github.com/noedaka/go-url-shortener/internal/model"
 )
 
 type FileStorage struct {
@@ -20,6 +21,7 @@ type record struct {
 	UUID        string `json:"uuid"`
 	ShortURL    string `json:"short_url"`
 	OriginalURL string `json:"original_url"`
+	UserID      string `json:"user_id"`
 }
 
 func NewFileStorage(filePath string) *FileStorage {
@@ -36,11 +38,12 @@ func NewFileStorage(filePath string) *FileStorage {
 	return fs
 }
 
-func (fs *FileStorage) Save(shortURL, originalURL string) error {
+func (fs *FileStorage) Save(shortURL, originalURL, userID string) error {
 	record := record{
 		UUID:        uuid.New().String(),
 		ShortURL:    shortURL,
 		OriginalURL: originalURL,
+		UserID:      userID,
 	}
 
 	if err := fs.appendRecord(record); err != nil {
@@ -62,6 +65,29 @@ func (fs *FileStorage) Get(shortURL string) (string, error) {
 		return url, nil
 	}
 	return "", errors.New("URL not found")
+}
+
+func (fs *FileStorage) GetByUser(userID string) ([]model.UrlPair, error) {
+	fs.mu.RLock()
+	defer fs.mu.RUnlock()
+
+	records, err := fs.readAll()
+	if err != nil {
+		return nil, err
+	}
+
+	var urlPairs []model.UrlPair
+	for _, record := range records {
+		if record.UserID == userID {
+			pair := model.UrlPair{
+				ShortUrl:    record.ShortURL,
+				OriginalUrl: record.OriginalURL,
+			}
+			urlPairs = append(urlPairs, pair)
+		}
+	}
+
+	return urlPairs, nil
 }
 
 func (fs *FileStorage) loadData() (map[string]string, error) {

@@ -1,5 +1,7 @@
 package model
 
+type ContextKey string
+
 type Request struct {
 	URL string `json:"url"`
 }
@@ -16,6 +18,11 @@ type BatchRequest struct {
 type BatchResponse struct {
 	CorrelationID string `json:"correlation_id"`
 	ShortURL      string `json:"short_url"`
+}
+
+type UrlPair struct {
+	ShortUrl    string `json:"short_url"`
+	OriginalUrl string `json:"original_url"`
 }
 
 type UniqueViolationError struct {
