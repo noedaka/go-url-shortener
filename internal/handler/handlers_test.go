@@ -95,7 +95,6 @@ func (m *MockStorage) AddURLForUser(shortID, originalURL, userID string) {
 	m.users[userID][shortID] = originalURL
 }
 
-// Вспомогательная функция для добавления userID в контекст
 func withUserID(ctx context.Context, userID string) context.Context {
 	return context.WithValue(ctx, config.UserIDKey, userID)
 }
@@ -154,7 +153,6 @@ func TestHandler_ShortenURLHandler(t *testing.T) {
 			req := httptest.NewRequest(tt.method, "/", bytes.NewBufferString(tt.body))
 			req.Header.Set("Content-Type", "text/plain")
 
-			// Добавляем userID в контекст
 			ctx := withUserID(req.Context(), tt.userID)
 			req = req.WithContext(ctx)
 
@@ -304,7 +302,6 @@ func TestHandler_APIShortenerHandler(t *testing.T) {
 			req := httptest.NewRequest(tt.method, "/api/shorten", bytes.NewBufferString(tt.body))
 			req.Header.Set("Content-Type", "application/json")
 
-			// Добавляем userID в контекст
 			ctx := withUserID(req.Context(), tt.userID)
 			req = req.WithContext(ctx)
 
@@ -396,7 +393,6 @@ func TestHandler_ShortenBatchHandler(t *testing.T) {
 			req := httptest.NewRequest(tt.method, "/api/shorten/batch", bytes.NewBufferString(tt.body))
 			req.Header.Set("Content-Type", "application/json")
 
-			// Добавляем userID в контекст
 			ctx := withUserID(req.Context(), tt.userID)
 			req = req.WithContext(ctx)
 
@@ -454,8 +450,8 @@ func TestHandler_APIUserUrlsHandler(t *testing.T) {
 				s.AddURLForUser("abc123", "https://example.com/1", "test-user")
 				s.AddURLForUser("def456", "https://example.com/2", "test-user")
 			},
-			wantStatus: http.StatusAccepted,
-			wantBody:   `[{"short_url":"abc123","original_url":"https://example.com/1"},{"short_url":"def456","original_url":"https://example.com/2"}]`,
+			wantStatus: http.StatusOK,
+			wantBody:   `[{"short_url":"http://localhost:8080/abc123","original_url":"https://example.com/1"},{"short_url":"http://localhost:8080/def456","original_url":"https://example.com/2"}]`,
 		},
 		{
 			name:       "Unauthorized",
