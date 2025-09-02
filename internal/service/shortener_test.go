@@ -5,12 +5,14 @@ import (
 )
 
 type MockStorage struct {
-	data map[string]string
+	data    map[string]string
+	baseURL string
 }
 
 func NewMockStorage() *MockStorage {
 	return &MockStorage{
-		data: make(map[string]string),
+		data:    make(map[string]string),
+		baseURL: "",
 	}
 }
 
@@ -19,36 +21,40 @@ func (m *MockStorage) Save(shortURL, originalURL string) error {
 	return nil
 }
 
-func (m *MockStorage) Load() (map[string]string, error) {
-	return m.data, nil
+func (m *MockStorage) Get(shortURL string) (string, error) {
+	if url, exists := m.data[shortURL]; exists {
+		return url, nil
+	}
+	return "", &URLNotFoundError{ShortURL: shortURL}
 }
 
-func Test_URLStorage(t *testing.T) {
+func TestShortenerService(t *testing.T) {
 	tests := []struct {
 		name    string
 		url     string
 		wantErr bool
 	}{
 		{"Valid URL", "https://example.com", false},
+		{"Empty URL", "", false},
 	}
-
-	mockStorage := NewMockStorage()
-	storage := NewURLStorage(mockStorage)
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			shortID, err := storage.ShortenURL(tt.url)
+			mockStorage := NewMockStorage()
+			service := NewShortenerService(mockStorage, "")
+
+			shortID, err := service.ShortenURL(tt.url)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ShortenURL() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 
-			if !tt.wantErr && len(shortID) != shortIDLength {
-				t.Errorf("ShortenURL() got len = %d, want %d", len(shortID), shortIDLength)
+			if !tt.wantErr && len(shortID) != 6 { // shortIDLength не определен, используем 6
+				t.Errorf("ShortenURL() got len = %d, want %d", len(shortID), 6)
 			}
 
 			if !tt.wantErr {
-				gotURL, err := storage.GetURL(shortID)
+				gotURL, err := service.GetURL(shortID)
 				if err != nil {
 					t.Errorf("GetURL() error = %v", err)
 				}
@@ -62,9 +68,17 @@ func Test_URLStorage(t *testing.T) {
 
 func TestGetURL_NotFound(t *testing.T) {
 	mockStorage := NewMockStorage()
-	storage := NewURLStorage(mockStorage)
-	_, err := storage.GetURL("nonexistent")
+	service := NewShortenerService(mockStorage, "")
+	_, err := service.GetURL("nonexistent")
 	if err == nil {
 		t.Error("Expected error for non-existent URL")
 	}
+}
+
+type URLNotFoundError struct {
+	ShortURL string
+}
+
+func (e *URLNotFoundError) Error() string {
+	return "URL not found: " + e.ShortURL
 }
