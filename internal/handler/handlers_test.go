@@ -54,21 +54,21 @@ func (m *MockStorage) Get(shortURL string) (string, error) {
 	return url, nil
 }
 
-func (m *MockStorage) GetByUser(userID string) ([]model.UrlPair, error) {
+func (m *MockStorage) GetByUser(userID string) ([]model.URLPair, error) {
 	if m.err != nil {
 		return nil, m.err
 	}
 
 	userURLs, exists := m.users[userID]
 	if !exists {
-		return []model.UrlPair{}, nil
+		return []model.URLPair{}, nil
 	}
 
-	var pairs []model.UrlPair
+	var pairs []model.URLPair
 	for shortURL, originalURL := range userURLs {
-		pairs = append(pairs, model.UrlPair{
-			ShortUrl:    shortURL,
-			OriginalUrl: originalURL,
+		pairs = append(pairs, model.URLPair{
+			ShortURL:    shortURL,
+			OriginalURL: originalURL,
 		})
 	}
 

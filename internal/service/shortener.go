@@ -26,16 +26,15 @@ func (s *ShortenerService) GetURL(shortID string) (string, error) {
 	return s.storage.Get(shortID)
 }
 
-func (s *ShortenerService) GetURLByUser(userID string) ([]model.UrlPair, error) {
-	urlPairs, err := s.storage.GetByUser(userID)
-	if err != nil {
-		return nil, err
-	}
-	for _, pair := range urlPairs {
-		pair.ShortUrl = s.BaseURL + "/" + pair.ShortUrl
-	}
-
-	return urlPairs, nil
+func (s *ShortenerService) GetURLByUser(userID string) ([]model.URLPair, error) {
+    urlPairs, err := s.storage.GetByUser(userID)
+    if err != nil {
+        return nil, err
+    }
+    for i := range urlPairs {
+        urlPairs[i].ShortURL = s.BaseURL + "/" + urlPairs[i].ShortURL
+    }
+    return urlPairs, nil
 }
 
 func (s *ShortenerService) ShortenURL(originalURL, userID string) (string, error) {

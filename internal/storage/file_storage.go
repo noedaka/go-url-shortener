@@ -67,7 +67,7 @@ func (fs *FileStorage) Get(shortURL string) (string, error) {
 	return "", errors.New("URL not found")
 }
 
-func (fs *FileStorage) GetByUser(userID string) ([]model.UrlPair, error) {
+func (fs *FileStorage) GetByUser(userID string) ([]model.URLPair, error) {
 	fs.mu.RLock()
 	defer fs.mu.RUnlock()
 
@@ -76,12 +76,12 @@ func (fs *FileStorage) GetByUser(userID string) ([]model.UrlPair, error) {
 		return nil, err
 	}
 
-	var urlPairs []model.UrlPair
+	var urlPairs []model.URLPair
 	for _, record := range records {
 		if record.UserID == userID {
-			pair := model.UrlPair{
-				ShortUrl:    record.ShortURL,
-				OriginalUrl: record.OriginalURL,
+			pair := model.URLPair{
+				ShortURL:    record.ShortURL,
+				OriginalURL: record.OriginalURL,
 			}
 			urlPairs = append(urlPairs, pair)
 		}

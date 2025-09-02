@@ -20,9 +20,9 @@ type BatchResponse struct {
 	ShortURL      string `json:"short_url"`
 }
 
-type UrlPair struct {
-	ShortUrl    string `json:"short_url"`
-	OriginalUrl string `json:"original_url"`
+type URLPair struct {
+	ShortURL   string `json:"short_url"`
+	OriginalURL string `json:"original_url"`
 }
 
 type UniqueViolationError struct {

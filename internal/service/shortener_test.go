@@ -30,7 +30,7 @@ func (m *MockStorage) Get(shortURL string) (string, error) {
 	return "", &URLNotFoundError{ShortURL: shortURL}
 }
 
-func (m *MockStorage) GetByUser(userID string) ([]model.UrlPair, error) {
+func (m *MockStorage) GetByUser(userID string) ([]model.URLPair, error) {
 	return nil, nil
 }
 

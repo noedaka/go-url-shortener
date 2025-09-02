@@ -49,8 +49,8 @@ func (ps *PostgresStorage) Get(shortURL string) (string, error) {
 	return originalURL, nil
 }
 
-func (ps *PostgresStorage) GetByUser(userID string) ([]model.UrlPair, error) {
-	var urlPairs []model.UrlPair
+func (ps *PostgresStorage) GetByUser(userID string) ([]model.URLPair, error) {
+	var urlPairs []model.URLPair
 	rows, err := ps.db.Query(
 		"SELECT short_url, original_url FROM urls WHERE user_id = $1", userID)
 
@@ -61,8 +61,8 @@ func (ps *PostgresStorage) GetByUser(userID string) ([]model.UrlPair, error) {
 	defer rows.Close()
 
 	for rows.Next() {
-		var urlPair model.UrlPair
-		err = rows.Scan(&urlPair.ShortUrl, &urlPair.OriginalUrl)
+		var urlPair model.URLPair
+		err = rows.Scan(&urlPair.ShortURL, &urlPair.OriginalURL)
 		if err != nil {
 			return nil, err
 		}
