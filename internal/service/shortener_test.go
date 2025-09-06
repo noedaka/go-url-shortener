@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"testing"
 
 	"github.com/noedaka/go-url-shortener/internal/model"
@@ -32,6 +33,10 @@ func (m *MockStorage) Get(shortURL string) (string, error) {
 
 func (m *MockStorage) GetByUser(userID string) ([]model.URLPair, error) {
 	return nil, nil
+}
+
+func (m *MockStorage) DeleteByUser(ctx context.Context, userID string, shortURL []string) error {
+	return nil
 }
 
 func TestShortenerService(t *testing.T) {

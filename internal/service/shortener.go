@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"math/rand"
 	"time"
 
@@ -27,14 +28,22 @@ func (s *ShortenerService) GetURL(shortID string) (string, error) {
 }
 
 func (s *ShortenerService) GetURLByUser(userID string) ([]model.URLPair, error) {
-    urlPairs, err := s.storage.GetByUser(userID)
-    if err != nil {
-        return nil, err
-    }
-    for i := range urlPairs {
-        urlPairs[i].ShortURL = s.BaseURL + "/" + urlPairs[i].ShortURL
-    }
-    return urlPairs, nil
+	urlPairs, err := s.storage.GetByUser(userID)
+	if err != nil {
+		return nil, err
+	}
+	for i := range urlPairs {
+		urlPairs[i].ShortURL = s.BaseURL + "/" + urlPairs[i].ShortURL
+	}
+	return urlPairs, nil
+}
+
+func (s *ShortenerService) DeleteShortURLSByUser(ctx context.Context, userID string, shortURL []string) error {
+	if err := s.storage.DeleteByUser(ctx, userID, shortURL); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (s *ShortenerService) ShortenURL(originalURL, userID string) (string, error) {

@@ -17,8 +17,8 @@ import (
 )
 
 type MockStorage struct {
-	urls  map[string]string          
-	users map[string]map[string]string 
+	urls  map[string]string
+	users map[string]map[string]string
 	err   error
 }
 
@@ -93,6 +93,10 @@ func (m *MockStorage) AddURLForUser(shortID, originalURL, userID string) {
 		m.users[userID] = make(map[string]string)
 	}
 	m.users[userID][shortID] = originalURL
+}
+
+func (m *MockStorage) DeleteByUser(ctx context.Context, userID string, shortURL []string) error {
+	return nil
 }
 
 func withUserID(ctx context.Context, userID string) context.Context {

@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"io"
@@ -88,6 +89,11 @@ func (fs *FileStorage) GetByUser(userID string) ([]model.URLPair, error) {
 	}
 
 	return urlPairs, nil
+}
+
+// Заглушка
+func (fs *FileStorage) DeleteByUser(ctx context.Context, userID string, shortURL []string) error {
+	return nil
 }
 
 func (fs *FileStorage) loadData() (map[string]string, error) {

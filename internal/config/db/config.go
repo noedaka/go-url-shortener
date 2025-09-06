@@ -8,7 +8,8 @@ func InitDatabase(db *sql.DB) error {
 			id SERIAL PRIMARY KEY,
 			short_url TEXT NOT NULL,
 			original_url TEXT NOT NULL,
-			user_id TEXT NOT NULL
+			user_id TEXT NOT NULL,
+			is_deleted BOOLEAN DEFAULT FALSE
         )
     `)
 	if err != nil {

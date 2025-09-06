@@ -9,17 +9,13 @@ import (
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/google/uuid"
 	"github.com/noedaka/go-url-shortener/internal/config"
+	"github.com/noedaka/go-url-shortener/internal/model"
 )
 
 const (
 	cookieName = "session_token"
 	secretKey  = "supersecretkey"
 )
-
-type Claims struct {
-	jwt.RegisteredClaims
-	UserID string `json:"user_id"`
-}
 
 func AuthMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -32,7 +28,7 @@ func AuthMiddleware(next http.Handler) http.Handler {
 		}
 
 		tokenStr := cookie.Value
-		claims := &Claims{}
+		claims := &model.Claims{}
 		token, err := jwt.ParseWithClaims(tokenStr, claims, func(token *jwt.Token) (interface{}, error) {
 			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 				return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
@@ -54,9 +50,9 @@ func AuthMiddleware(next http.Handler) http.Handler {
 
 func setNewCookie(w http.ResponseWriter) string {
 	userID := uuid.New().String()
-	expiresAt := time.Now().Add(2 * time.Minute)
+	expiresAt := time.Now().Add(24 * time.Hour)
 
-	claims := &Claims{
+	claims := &model.Claims{
 		UserID: userID,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(expiresAt),

@@ -1,8 +1,12 @@
 package storage
 
 import (
+	"context"
 	"database/sql"
 	"errors"
+	"fmt"
+	"strings"
+	"sync"
 
 	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -38,12 +42,17 @@ func (ps *PostgresStorage) Save(shortURL, originalURL, userID string) error {
 
 func (ps *PostgresStorage) Get(shortURL string) (string, error) {
 	var originalURL string
+	var isDeleted bool
 	err := ps.db.QueryRow(
-		"SELECT original_URL FROM urls WHERE short_url = $1", shortURL,
-	).Scan(&originalURL)
+		"SELECT original_URL, is_deleted FROM urls WHERE short_url = $1", shortURL,
+	).Scan(&originalURL, &isDeleted)
 
 	if err != nil {
 		return "", err
+	}
+
+	if isDeleted {
+		return "", nil
 	}
 
 	return originalURL, nil
@@ -76,6 +85,92 @@ func (ps *PostgresStorage) GetByUser(userID string) ([]model.URLPair, error) {
 	}
 
 	return urlPairs, nil
+}
+
+func (ps *PostgresStorage) DeleteByUser(ctx context.Context, userID string, shortURL []string) error {
+	if  err := ps.fanInUpdate(ctx, userID, shortURL); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (ps *PostgresStorage) updateDeletedForURLs(ctx context.Context, userID string, urls []string) error {
+	if len(urls) == 0 {
+		return nil
+	}
+
+	tx, err := ps.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		_ = tx.Rollback()
+	}()
+
+	placeholders := make([]string, len(urls))
+	args := make([]interface{}, len(urls)+1)
+	args[0] = userID
+
+	for i, uri := range urls {
+		placeholders[i] = fmt.Sprintf("$%d", i+2)
+		args[i+1] = uri
+	}
+
+	query := fmt.Sprintf(
+		"UPDATE urls SET is_deleted = TRUE WHERE user_id = $1 AND short_url IN (%s)",
+		strings.Join(placeholders, ", "),
+	)
+
+	_, err = tx.ExecContext(ctx, query, args...)
+	if err != nil {
+		return err
+	}
+
+	return tx.Commit()
+}
+
+func (ps *PostgresStorage) fanInUpdate(ctx context.Context, userID string, urls []string) error {
+	const batchSize = 100
+	urlBatches := make([][]string, 0)
+
+	for i := 0; i < len(urls); i += batchSize {
+		end := i + batchSize
+		if end > len(urls) {
+			end = len(urls)
+		}
+		urlBatches = append(urlBatches, urls[i:end])
+	}
+
+	errors := make(chan error, len(urlBatches))
+	var wg sync.WaitGroup
+
+	for _, batch := range urlBatches {
+		wg.Add(1)
+		go func(batchURIs []string) {
+			defer wg.Done()
+
+			select {
+			case <-ctx.Done():
+				errors <- ctx.Err()
+			default:
+				if err := ps.updateDeletedForURLs(ctx, userID, batchURIs); err != nil {
+					errors <- err
+				}
+			}
+		}(batch)
+	}
+
+	wg.Wait()
+	close(errors)
+
+	for err := range errors {
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (ps *PostgresStorage) getExistingShortID(originalURL string) (string, error) {

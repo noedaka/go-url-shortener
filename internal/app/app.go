@@ -64,9 +64,16 @@ func Run() error {
 		r.Use(middleware.LoggingMiddleware)
 		r.Use(middleware.GzipMiddleware)
 		r.Use(middleware.AuthMiddleware)
-		r.Post("/api/shorten", handlerURL.APIShortenerHandler)
-		r.Post("/api/shorten/batch", handlerURL.ShortenBatchHandler)
-		r.Get("/api/user/urls", handlerURL.APIUserUrlsHandler)
+		r.Route("/api", func(r chi.Router) {
+			r.Route("/shorten", func(r chi.Router) {
+				r.Post("/", handlerURL.APIShortenerHandler)
+				r.Post("/batch", handlerURL.ShortenBatchHandler)
+			})
+			r.Route("/user/urls", func(r chi.Router) {
+				r.Get("/", handlerURL.APIUserUrlsHandler)
+				r.Delete("/", handlerURL.APIDeleteShortURLSHandler)
+			})
+		})
 		r.Post("/", handlerURL.ShortenURLHandler)
 		r.Get("/{id}", handlerURL.ShortIDHandler)
 		r.Get("/ping", handlerURL.PingDBHandler)
