@@ -17,16 +17,20 @@ import (
 )
 
 type MockStorage struct {
-	urls  map[string]string
-	users map[string]map[string]string
-	err   error
+    urls  map[string]string
+    users map[string]map[string]string
+    err   error
+    deletedArgs []struct {
+        userID    string
+        shortURLs []string
+    }
 }
 
 func NewMockStorage() *MockStorage {
-	return &MockStorage{
-		urls:  make(map[string]string),
-		users: make(map[string]map[string]string),
-	}
+    return &MockStorage{
+        urls:  make(map[string]string),
+        users: make(map[string]map[string]string),
+    }
 }
 
 func (m *MockStorage) Save(shortURL, originalURL, userID string) error {
@@ -95,8 +99,33 @@ func (m *MockStorage) AddURLForUser(shortID, originalURL, userID string) {
 	m.users[userID][shortID] = originalURL
 }
 
-func (m *MockStorage) DeleteByUser(ctx context.Context, userID string, shortURL []string) error {
-	return nil
+func (m *MockStorage) DeleteByUser(ctx context.Context, userID string, shortURLs []string) error {
+    m.deletedArgs = append(m.deletedArgs, struct {
+        userID    string
+        shortURLs []string
+    }{userID: userID, shortURLs: shortURLs})
+
+    if m.err != nil {
+        return m.err
+    }
+
+    if userURLs, exists := m.users[userID]; exists {
+        for _, shortURL := range shortURLs {
+            delete(userURLs, shortURL)
+        }
+    }
+    return nil
+}
+
+func (m *MockStorage) ResetDeletedArgs() {
+    m.deletedArgs = nil
+}
+
+func (m *MockStorage) GetDeletedArgs() []struct {
+    userID    string
+    shortURLs []string
+} {
+    return m.deletedArgs
 }
 
 func withUserID(ctx context.Context, userID string) context.Context {
@@ -503,4 +532,83 @@ func TestHandler_APIUserUrlsHandler(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestHandler_APIDeleteShortURLSHandler(t *testing.T) {
+    mockStorage := NewMockStorage()
+    svc := service.NewShortenerService(mockStorage, "http://localhost:8080")
+    h := NewHandler(*svc, nil)
+
+    r := chi.NewRouter()
+    r.Delete("/api/user/urls", h.APIDeleteShortURLSHandler)
+
+    tests := []struct {
+        name       string
+        method     string
+        body       string
+        userID     string
+        prepare    func(s *MockStorage)
+        wantStatus int
+    }{
+        {
+            name:   "Success",
+            method: http.MethodDelete,
+            body:   `["short1", "short2"]`,
+            userID: "test-user",
+            prepare: func(s *MockStorage) {
+                s.AddURLForUser("short1", "https://example.com/1", "test-user")
+                s.AddURLForUser("short2", "https://example.com/2", "test-user")
+            },
+            wantStatus: http.StatusAccepted,
+        },
+        {
+            name:       "Unauthorized",
+            method:     http.MethodDelete,
+            body:       `["short1", "short2"]`,
+            userID:     "",
+            wantStatus: http.StatusUnauthorized,
+        },
+        {
+            name:       "Bad JSON",
+            method:     http.MethodDelete,
+            body:       `invalid json`,
+            userID:     "test-user",
+            wantStatus: http.StatusBadRequest,
+        },
+        {
+            name:   "Service error",
+            method: http.MethodDelete,
+            body:   `["short1", "short2"]`,
+            userID: "test-user",
+            prepare: func(s *MockStorage) {
+                s.SetError(errors.New("service error"))
+            },
+            wantStatus: http.StatusBadRequest,
+        },
+    }
+
+    for _, tt := range tests {
+        t.Run(tt.name, func(t *testing.T) {
+            mockStorage.ResetDeletedArgs()
+            mockStorage.SetError(nil)
+
+            if tt.prepare != nil {
+                tt.prepare(mockStorage)
+            }
+
+            req := httptest.NewRequest(tt.method, "/api/user/urls", bytes.NewBufferString(tt.body))
+            req.Header.Set("Content-Type", "application/json")
+
+            if tt.userID != "" {
+                ctx := withUserID(req.Context(), tt.userID)
+                req = req.WithContext(ctx)
+            }
+
+            rr := httptest.NewRecorder()
+
+            r.ServeHTTP(rr, req)
+
+            assert.Equal(t, tt.wantStatus, rr.Code)
+        })
+    }
 }
