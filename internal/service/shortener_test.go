@@ -19,19 +19,19 @@ func NewMockStorage() *MockStorage {
 	}
 }
 
-func (m *MockStorage) Save(shortURL, originalURL, userID string) error {
+func (m *MockStorage) Save(ctx context.Context, shortURL, originalURL, userID string) error {
 	m.data[shortURL] = originalURL
 	return nil
 }
 
-func (m *MockStorage) Get(shortURL string) (string, error) {
+func (m *MockStorage) Get(ctx context.Context, shortURL string) (string, error) {
 	if url, exists := m.data[shortURL]; exists {
 		return url, nil
 	}
 	return "", &URLNotFoundError{ShortURL: shortURL}
 }
 
-func (m *MockStorage) GetByUser(userID string) ([]model.URLPair, error) {
+func (m *MockStorage) GetByUser(ctx context.Context, userID string) ([]model.URLPair, error) {
 	return nil, nil
 }
 
@@ -51,10 +51,11 @@ func TestShortenerService(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			ctx := context.Background()
 			mockStorage := NewMockStorage()
 			service := NewShortenerService(mockStorage, "")
 
-			shortID, err := service.ShortenURL(tt.url, "")
+			shortID, err := service.ShortenURL(ctx, tt.url, "")
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ShortenURL() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -65,7 +66,7 @@ func TestShortenerService(t *testing.T) {
 			}
 
 			if !tt.wantErr {
-				gotURL, err := service.GetURL(shortID)
+				gotURL, err := service.GetURL(ctx, shortID)
 				if err != nil {
 					t.Errorf("GetURL() error = %v", err)
 				}
@@ -78,9 +79,10 @@ func TestShortenerService(t *testing.T) {
 }
 
 func TestGetURL_NotFound(t *testing.T) {
+	ctx := context.Background()
 	mockStorage := NewMockStorage()
 	service := NewShortenerService(mockStorage, "")
-	_, err := service.GetURL("nonexistent")
+	_, err := service.GetURL(ctx, "nonexistent")
 	if err == nil {
 		t.Error("Expected error for non-existent URL")
 	}

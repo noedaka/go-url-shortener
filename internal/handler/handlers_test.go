@@ -17,23 +17,23 @@ import (
 )
 
 type MockStorage struct {
-    urls  map[string]string
-    users map[string]map[string]string
-    err   error
-    deletedArgs []struct {
-        userID    string
-        shortURLs []string
-    }
+	urls        map[string]string
+	users       map[string]map[string]string
+	err         error
+	deletedArgs []struct {
+		userID    string
+		shortURLs []string
+	}
 }
 
 func NewMockStorage() *MockStorage {
-    return &MockStorage{
-        urls:  make(map[string]string),
-        users: make(map[string]map[string]string),
-    }
+	return &MockStorage{
+		urls:  make(map[string]string),
+		users: make(map[string]map[string]string),
+	}
 }
 
-func (m *MockStorage) Save(shortURL, originalURL, userID string) error {
+func (m *MockStorage) Save(ctx context.Context, shortURL, originalURL, userID string) error {
 	if m.err != nil {
 		return m.err
 	}
@@ -47,7 +47,7 @@ func (m *MockStorage) Save(shortURL, originalURL, userID string) error {
 	return nil
 }
 
-func (m *MockStorage) Get(shortURL string) (string, error) {
+func (m *MockStorage) Get(ctx context.Context, shortURL string) (string, error) {
 	if m.err != nil {
 		return "", m.err
 	}
@@ -58,7 +58,7 @@ func (m *MockStorage) Get(shortURL string) (string, error) {
 	return url, nil
 }
 
-func (m *MockStorage) GetByUser(userID string) ([]model.URLPair, error) {
+func (m *MockStorage) GetByUser(ctx context.Context, userID string) ([]model.URLPair, error) {
 	if m.err != nil {
 		return nil, m.err
 	}
@@ -100,32 +100,32 @@ func (m *MockStorage) AddURLForUser(shortID, originalURL, userID string) {
 }
 
 func (m *MockStorage) DeleteByUser(ctx context.Context, userID string, shortURLs []string) error {
-    m.deletedArgs = append(m.deletedArgs, struct {
-        userID    string
-        shortURLs []string
-    }{userID: userID, shortURLs: shortURLs})
+	m.deletedArgs = append(m.deletedArgs, struct {
+		userID    string
+		shortURLs []string
+	}{userID: userID, shortURLs: shortURLs})
 
-    if m.err != nil {
-        return m.err
-    }
+	if m.err != nil {
+		return m.err
+	}
 
-    if userURLs, exists := m.users[userID]; exists {
-        for _, shortURL := range shortURLs {
-            delete(userURLs, shortURL)
-        }
-    }
-    return nil
+	if userURLs, exists := m.users[userID]; exists {
+		for _, shortURL := range shortURLs {
+			delete(userURLs, shortURL)
+		}
+	}
+	return nil
 }
 
 func (m *MockStorage) ResetDeletedArgs() {
-    m.deletedArgs = nil
+	m.deletedArgs = nil
 }
 
 func (m *MockStorage) GetDeletedArgs() []struct {
-    userID    string
-    shortURLs []string
+	userID    string
+	shortURLs []string
 } {
-    return m.deletedArgs
+	return m.deletedArgs
 }
 
 func withUserID(ctx context.Context, userID string) context.Context {
@@ -321,7 +321,7 @@ func TestHandler_APIShortenerHandler(t *testing.T) {
 			userID:  "test-user",
 			prepare: func(s *MockStorage) { s.SetError(errors.New("service error")) },
 			want: want{
-				statusCode: http.StatusBadRequest,
+				statusCode: http.StatusInternalServerError,
 			},
 		},
 	}
@@ -501,7 +501,7 @@ func TestHandler_APIUserUrlsHandler(t *testing.T) {
 			prepare: func(s *MockStorage) {
 				s.SetError(errors.New("service error"))
 			},
-			wantStatus: http.StatusBadRequest,
+			wantStatus: http.StatusInternalServerError,
 			wantBody:   "cannot get urls by user",
 		},
 	}
@@ -535,80 +535,80 @@ func TestHandler_APIUserUrlsHandler(t *testing.T) {
 }
 
 func TestHandler_APIDeleteShortURLSHandler(t *testing.T) {
-    mockStorage := NewMockStorage()
-    svc := service.NewShortenerService(mockStorage, "http://localhost:8080")
-    h := NewHandler(*svc, nil)
+	mockStorage := NewMockStorage()
+	svc := service.NewShortenerService(mockStorage, "http://localhost:8080")
+	h := NewHandler(*svc, nil)
 
-    r := chi.NewRouter()
-    r.Delete("/api/user/urls", h.APIDeleteShortURLSHandler)
+	r := chi.NewRouter()
+	r.Delete("/api/user/urls", h.APIDeleteShortURLSHandler)
 
-    tests := []struct {
-        name       string
-        method     string
-        body       string
-        userID     string
-        prepare    func(s *MockStorage)
-        wantStatus int
-    }{
-        {
-            name:   "Success",
-            method: http.MethodDelete,
-            body:   `["short1", "short2"]`,
-            userID: "test-user",
-            prepare: func(s *MockStorage) {
-                s.AddURLForUser("short1", "https://example.com/1", "test-user")
-                s.AddURLForUser("short2", "https://example.com/2", "test-user")
-            },
-            wantStatus: http.StatusAccepted,
-        },
-        {
-            name:       "Unauthorized",
-            method:     http.MethodDelete,
-            body:       `["short1", "short2"]`,
-            userID:     "",
-            wantStatus: http.StatusUnauthorized,
-        },
-        {
-            name:       "Bad JSON",
-            method:     http.MethodDelete,
-            body:       `invalid json`,
-            userID:     "test-user",
-            wantStatus: http.StatusBadRequest,
-        },
-        {
-            name:   "Service error",
-            method: http.MethodDelete,
-            body:   `["short1", "short2"]`,
-            userID: "test-user",
-            prepare: func(s *MockStorage) {
-                s.SetError(errors.New("service error"))
-            },
-            wantStatus: http.StatusBadRequest,
-        },
-    }
+	tests := []struct {
+		name       string
+		method     string
+		body       string
+		userID     string
+		prepare    func(s *MockStorage)
+		wantStatus int
+	}{
+		{
+			name:   "Success",
+			method: http.MethodDelete,
+			body:   `["short1", "short2"]`,
+			userID: "test-user",
+			prepare: func(s *MockStorage) {
+				s.AddURLForUser("short1", "https://example.com/1", "test-user")
+				s.AddURLForUser("short2", "https://example.com/2", "test-user")
+			},
+			wantStatus: http.StatusAccepted,
+		},
+		{
+			name:       "Unauthorized",
+			method:     http.MethodDelete,
+			body:       `["short1", "short2"]`,
+			userID:     "",
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "Bad JSON",
+			method:     http.MethodDelete,
+			body:       `invalid json`,
+			userID:     "test-user",
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:   "Service error",
+			method: http.MethodDelete,
+			body:   `["short1", "short2"]`,
+			userID: "test-user",
+			prepare: func(s *MockStorage) {
+				s.SetError(errors.New("service error"))
+			},
+			wantStatus: http.StatusInternalServerError,
+		},
+	}
 
-    for _, tt := range tests {
-        t.Run(tt.name, func(t *testing.T) {
-            mockStorage.ResetDeletedArgs()
-            mockStorage.SetError(nil)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockStorage.ResetDeletedArgs()
+			mockStorage.SetError(nil)
 
-            if tt.prepare != nil {
-                tt.prepare(mockStorage)
-            }
+			if tt.prepare != nil {
+				tt.prepare(mockStorage)
+			}
 
-            req := httptest.NewRequest(tt.method, "/api/user/urls", bytes.NewBufferString(tt.body))
-            req.Header.Set("Content-Type", "application/json")
+			req := httptest.NewRequest(tt.method, "/api/user/urls", bytes.NewBufferString(tt.body))
+			req.Header.Set("Content-Type", "application/json")
 
-            if tt.userID != "" {
-                ctx := withUserID(req.Context(), tt.userID)
-                req = req.WithContext(ctx)
-            }
+			if tt.userID != "" {
+				ctx := withUserID(req.Context(), tt.userID)
+				req = req.WithContext(ctx)
+			}
 
-            rr := httptest.NewRecorder()
+			rr := httptest.NewRecorder()
 
-            r.ServeHTTP(rr, req)
+			r.ServeHTTP(rr, req)
 
-            assert.Equal(t, tt.wantStatus, rr.Code)
-        })
-    }
+			assert.Equal(t, tt.wantStatus, rr.Code)
+		})
+	}
 }

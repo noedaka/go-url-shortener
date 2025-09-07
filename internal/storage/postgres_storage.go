@@ -21,14 +21,14 @@ func NewPostgresStorage(db *sql.DB) (*PostgresStorage, error) {
 	return &PostgresStorage{db: db}, nil
 }
 
-func (ps *PostgresStorage) Save(shortURL, originalURL, userID string) error {
-	_, err := ps.db.Exec("INSERT INTO urls (short_url, original_url, user_id) VALUES ($1, $2, $3)",
+func (ps *PostgresStorage) Save(ctx context.Context, shortURL, originalURL, userID string) error {
+	_, err := ps.db.ExecContext(ctx, "INSERT INTO urls (short_url, original_url, user_id) VALUES ($1, $2, $3)",
 		shortURL, originalURL, userID)
 
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == pgerrcode.UniqueViolation {
-			existingShortID, err := ps.getExistingShortID(originalURL)
+			existingShortID, err := ps.getExistingShortID(ctx, originalURL)
 			if err != nil {
 				return err
 			}
@@ -40,10 +40,10 @@ func (ps *PostgresStorage) Save(shortURL, originalURL, userID string) error {
 	return nil
 }
 
-func (ps *PostgresStorage) Get(shortURL string) (string, error) {
+func (ps *PostgresStorage) Get(ctx context.Context, shortURL string) (string, error) {
 	var originalURL string
 	var isDeleted bool
-	err := ps.db.QueryRow(
+	err := ps.db.QueryRowContext(ctx,
 		"SELECT original_URL, is_deleted FROM urls WHERE short_url = $1", shortURL,
 	).Scan(&originalURL, &isDeleted)
 
@@ -58,9 +58,9 @@ func (ps *PostgresStorage) Get(shortURL string) (string, error) {
 	return originalURL, nil
 }
 
-func (ps *PostgresStorage) GetByUser(userID string) ([]model.URLPair, error) {
+func (ps *PostgresStorage) GetByUser(ctx context.Context, userID string) ([]model.URLPair, error) {
 	var urlPairs []model.URLPair
-	rows, err := ps.db.Query(
+	rows, err := ps.db.QueryContext(ctx,
 		"SELECT short_url, original_url FROM urls WHERE user_id = $1", userID)
 
 	if err != nil {
@@ -88,7 +88,7 @@ func (ps *PostgresStorage) GetByUser(userID string) ([]model.URLPair, error) {
 }
 
 func (ps *PostgresStorage) DeleteByUser(ctx context.Context, userID string, shortURL []string) error {
-	if  err := ps.fanInUpdate(ctx, userID, shortURL); err != nil {
+	if err := ps.fanInUpdate(ctx, userID, shortURL); err != nil {
 		return err
 	}
 
@@ -96,10 +96,6 @@ func (ps *PostgresStorage) DeleteByUser(ctx context.Context, userID string, shor
 }
 
 func (ps *PostgresStorage) updateDeletedForURLs(ctx context.Context, userID string, urls []string) error {
-	if len(urls) == 0 {
-		return nil
-	}
-
 	tx, err := ps.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
@@ -173,9 +169,9 @@ func (ps *PostgresStorage) fanInUpdate(ctx context.Context, userID string, urls 
 	return nil
 }
 
-func (ps *PostgresStorage) getExistingShortID(originalURL string) (string, error) {
+func (ps *PostgresStorage) getExistingShortID(ctx context.Context, originalURL string) (string, error) {
 	var shortID string
-	err := ps.db.QueryRow(
+	err := ps.db.QueryRowContext(ctx,
 		"SELECT short_url FROM urls WHERE original_url = $1",
 		originalURL,
 	).Scan(&shortID)

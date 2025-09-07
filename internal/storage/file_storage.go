@@ -39,7 +39,7 @@ func NewFileStorage(filePath string) *FileStorage {
 	return fs
 }
 
-func (fs *FileStorage) Save(shortURL, originalURL, userID string) error {
+func (fs *FileStorage) Save(ctx context.Context, shortURL, originalURL, userID string) error {
 	record := record{
 		UUID:        uuid.New().String(),
 		ShortURL:    shortURL,
@@ -58,7 +58,7 @@ func (fs *FileStorage) Save(shortURL, originalURL, userID string) error {
 	return nil
 }
 
-func (fs *FileStorage) Get(shortURL string) (string, error) {
+func (fs *FileStorage) Get(ctx context.Context, shortURL string) (string, error) {
 	fs.mu.RLock()
 	defer fs.mu.RUnlock()
 
@@ -68,7 +68,7 @@ func (fs *FileStorage) Get(shortURL string) (string, error) {
 	return "", errors.New("URL not found")
 }
 
-func (fs *FileStorage) GetByUser(userID string) ([]model.URLPair, error) {
+func (fs *FileStorage) GetByUser(ctx context.Context, userID string) ([]model.URLPair, error) {
 	fs.mu.RLock()
 	defer fs.mu.RUnlock()
 

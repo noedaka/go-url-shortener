@@ -7,8 +7,8 @@ import (
 )
 
 type URLStorage interface {
-	Save(shortURL, originalURL, userID string) error
-	Get(shortURL string) (string, error)
-	GetByUser(userID string) ([]model.URLPair, error)
+	Save(ctx context.Context, shortURL, originalURL, userID string) error
+	Get(ctx context.Context, shortURL string) (string, error)
+	GetByUser(ctx context.Context, userID string) ([]model.URLPair, error)
 	DeleteByUser(ctx context.Context, userID string, shortURL []string) error
 }

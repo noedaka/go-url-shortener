@@ -40,12 +40,12 @@ func (h *Handler) ShortenURLHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	shortID, err := h.service.ShortenURL(originalURL, userID)
+	shortID, err := h.service.ShortenURL(r.Context(), originalURL, userID)
 	if err != nil {
 		if h.handleShortenError(w, err, "text/plain") {
 			return
 		}
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "cannot shorten URL", http.StatusInternalServerError)
 		return
 	}
 
@@ -70,12 +70,12 @@ func (h *Handler) APIShortenerHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	shortID, err := h.service.ShortenURL(req.URL, userID)
+	shortID, err := h.service.ShortenURL(r.Context(), req.URL, userID)
 	if err != nil {
 		if h.handleShortenError(w, err, "application/json") {
 			return
 		}
-		http.Error(w, "cannot shorten url", http.StatusBadRequest)
+		http.Error(w, "cannot shorten url", http.StatusInternalServerError)
 		return
 	}
 
@@ -102,9 +102,9 @@ func (h *Handler) APIUserUrlsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	urlPairs, err := h.service.GetURLByUser(userID)
+	urlPairs, err := h.service.GetURLByUser(r.Context(), userID)
 	if err != nil {
-		http.Error(w, "cannot get urls by user", http.StatusBadRequest)
+		http.Error(w, "cannot get urls by user", http.StatusInternalServerError)
 		return
 	}
 
@@ -126,7 +126,7 @@ func (h *Handler) APIUserUrlsHandler(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) ShortIDHandler(w http.ResponseWriter, r *http.Request) {
 	shortID := chi.URLParam(r, "id")
 
-	URL, err := h.service.GetURL(shortID)
+	URL, err := h.service.GetURL(r.Context(), shortID)
 	if err != nil {
 		http.Error(w, "cannot get url from id", http.StatusBadRequest)
 		return
@@ -169,9 +169,9 @@ func (h *Handler) ShortenBatchHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	batchResponse, err := h.service.ShortenMultipleURLS(batchRequest, userID)
+	batchResponse, err := h.service.ShortenMultipleURLS(r.Context(), batchRequest, userID)
 	if err != nil {
-		http.Error(w, "cannot shorten multiple urls", http.StatusBadRequest)
+		http.Error(w, "cannot shorten multiple urls", http.StatusInternalServerError)
 		return
 	}
 
@@ -186,6 +186,12 @@ func (h *Handler) ShortenBatchHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) APIDeleteShortURLSHandler(w http.ResponseWriter, r *http.Request) {
+	userID, ok := getUserIDFromContext(r.Context())
+	if !ok {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
 	var shortURLS []string
 
 	if err := json.NewDecoder(r.Body).Decode(&shortURLS); err != nil {
@@ -193,14 +199,8 @@ func (h *Handler) APIDeleteShortURLSHandler(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	userID, ok := getUserIDFromContext(r.Context())
-	if !ok {
-		http.Error(w, "unauthorized", http.StatusUnauthorized)
-		return
-	}
-
 	if err := h.service.DeleteShortURLSByUser(r.Context(), userID, shortURLS); err != nil {
-		http.Error(w, "cannot shorten url", http.StatusBadRequest)
+		http.Error(w, "cannot shorten url", http.StatusInternalServerError)
 	}
 
 	w.WriteHeader(http.StatusAccepted)
