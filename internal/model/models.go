@@ -1,5 +1,9 @@
 package model
 
+import "github.com/golang-jwt/jwt/v4"
+
+type ContextKey string
+
 type Request struct {
 	URL string `json:"url"`
 }
@@ -18,9 +22,24 @@ type BatchResponse struct {
 	ShortURL      string `json:"short_url"`
 }
 
+type URLPair struct {
+	ShortURL    string `json:"short_url"`
+	OriginalURL string `json:"original_url"`
+}
+
 type UniqueViolationError struct {
 	ShortID string
 	Err     error
+}
+
+type UpdateItem struct {
+	ID       int
+	ShortURL string
+}
+
+type Claims struct {
+	jwt.RegisteredClaims
+	UserID string `json:"user_id"`
 }
 
 func (e *UniqueViolationError) Error() string {

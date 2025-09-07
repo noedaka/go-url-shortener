@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"math/rand"
 	"time"
 
@@ -22,13 +23,35 @@ func NewShortenerService(storage storage.URLStorage, baseURL string) *ShortenerS
 	}
 }
 
-func (s *ShortenerService) GetURL(shortID string) (string, error) {
-	return s.storage.Get(shortID)
+func (s *ShortenerService) GetURL(ctx context.Context, shortID string) (string, error) {
+	return s.storage.Get(ctx, shortID)
 }
 
-func (s *ShortenerService) ShortenURL(originalURL string) (string, error) {
+func (s *ShortenerService) GetURLByUser(ctx context.Context, userID string) ([]model.URLPair, error) {
+	urlPairs, err := s.storage.GetByUser(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	for i := range urlPairs {
+		urlPairs[i].ShortURL = s.BaseURL + "/" + urlPairs[i].ShortURL
+	}
+	return urlPairs, nil
+}
+
+func (s *ShortenerService) DeleteShortURLSByUser(ctx context.Context, userID string, shortURL []string) error {
+	if len(shortURL) == 0 {
+		return nil
+	}
+	if err := s.storage.DeleteByUser(ctx, userID, shortURL); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *ShortenerService) ShortenURL(ctx context.Context, originalURL, userID string) (string, error) {
 	shortID := s.generateShortID()
-	err := s.storage.Save(shortID, originalURL)
+	err := s.storage.Save(ctx, shortID, originalURL, userID)
 
 	if err != nil {
 		return "", err
@@ -37,10 +60,10 @@ func (s *ShortenerService) ShortenURL(originalURL string) (string, error) {
 	return shortID, nil
 }
 
-func (s *ShortenerService) ShortenMultipleURLS(batchRequest []model.BatchRequest) ([]model.BatchResponse, error) {
+func (s *ShortenerService) ShortenMultipleURLS(ctx context.Context, batchRequest []model.BatchRequest, userID string) ([]model.BatchResponse, error) {
 	var batchResponse []model.BatchResponse
 	for _, request := range batchRequest {
-		shortURL, err := s.ShortenURL(request.URL)
+		shortURL, err := s.ShortenURL(ctx, request.URL, userID)
 		if err != nil {
 			return nil, err
 		}

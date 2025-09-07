@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"context"
 	"os"
 	"testing"
 
@@ -21,33 +22,36 @@ func TestNewFileStorage(t *testing.T) {
 
 func TestSaveAndGet(t *testing.T) {
 	defer cleanup()
+	ctx := context.Background()
 	fs := NewFileStorage(testFilePath)
 
-	err := fs.Save("abc", "https://example.com")
+	err := fs.Save(ctx, "abc", "https://example.com", "")
 	assert.NoError(t, err, "Save failed")
 
-	url, err := fs.Get("abc")
+	url, err := fs.Get(ctx, "abc")
 	assert.NoError(t, err, "Get failed")
 	assert.Equal(t, "https://example.com", url, "URL mismatch")
 }
 
 func TestGetNonExistent(t *testing.T) {
 	defer cleanup()
+	ctx := context.Background()
 	fs := NewFileStorage(testFilePath)
 
-	_, err := fs.Get("nonexistent")
+	_, err := fs.Get(ctx, "nonexistent")
 	assert.Error(t, err, "Expected error for non-existent key")
 }
 
 func TestMultipleSaves(t *testing.T) {
 	defer cleanup()
+	ctx := context.Background()
 	fs := NewFileStorage(testFilePath)
 
-	assert.NoError(t, fs.Save("k1", "v1"), "Save k1 failed")
-	assert.NoError(t, fs.Save("k2", "v2"), "Save k2 failed")
+	assert.NoError(t, fs.Save(ctx, "k1", "v1", ""), "Save k1 failed")
+	assert.NoError(t, fs.Save(ctx, "k2", "v2", ""), "Save k2 failed")
 
-	val1, err1 := fs.Get("k1")
-	val2, err2 := fs.Get("k2")
+	val1, err1 := fs.Get(ctx, "k1")
+	val2, err2 := fs.Get(ctx, "k2")
 
 	assert.NoError(t, err1, "Get k1 failed")
 	assert.NoError(t, err2, "Get k2 failed")
@@ -57,12 +61,13 @@ func TestMultipleSaves(t *testing.T) {
 
 func TestSaveEmptyValues(t *testing.T) {
 	defer cleanup()
+	ctx := context.Background()
 	fs := NewFileStorage(testFilePath)
 
-	err := fs.Save("", "")
+	err := fs.Save(ctx, "", "", "")
 	assert.NoError(t, err, "Save with empty values failed")
 
-	val, err := fs.Get("")
+	val, err := fs.Get(ctx, "")
 	assert.NoError(t, err, "Get for empty key failed")
 	assert.Equal(t, "", val, "Expected empty string for empty key")
 }

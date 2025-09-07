@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"io"
@@ -8,6 +9,7 @@ import (
 	"sync"
 
 	"github.com/google/uuid"
+	"github.com/noedaka/go-url-shortener/internal/model"
 )
 
 type FileStorage struct {
@@ -20,6 +22,7 @@ type record struct {
 	UUID        string `json:"uuid"`
 	ShortURL    string `json:"short_url"`
 	OriginalURL string `json:"original_url"`
+	UserID      string `json:"user_id"`
 }
 
 func NewFileStorage(filePath string) *FileStorage {
@@ -36,11 +39,12 @@ func NewFileStorage(filePath string) *FileStorage {
 	return fs
 }
 
-func (fs *FileStorage) Save(shortURL, originalURL string) error {
+func (fs *FileStorage) Save(ctx context.Context, shortURL, originalURL, userID string) error {
 	record := record{
 		UUID:        uuid.New().String(),
 		ShortURL:    shortURL,
 		OriginalURL: originalURL,
+		UserID:      userID,
 	}
 
 	if err := fs.appendRecord(record); err != nil {
@@ -54,7 +58,7 @@ func (fs *FileStorage) Save(shortURL, originalURL string) error {
 	return nil
 }
 
-func (fs *FileStorage) Get(shortURL string) (string, error) {
+func (fs *FileStorage) Get(ctx context.Context, shortURL string) (string, error) {
 	fs.mu.RLock()
 	defer fs.mu.RUnlock()
 
@@ -62,6 +66,34 @@ func (fs *FileStorage) Get(shortURL string) (string, error) {
 		return url, nil
 	}
 	return "", errors.New("URL not found")
+}
+
+func (fs *FileStorage) GetByUser(ctx context.Context, userID string) ([]model.URLPair, error) {
+	fs.mu.RLock()
+	defer fs.mu.RUnlock()
+
+	records, err := fs.readAll()
+	if err != nil {
+		return nil, err
+	}
+
+	var urlPairs []model.URLPair
+	for _, record := range records {
+		if record.UserID == userID {
+			pair := model.URLPair{
+				ShortURL:    record.ShortURL,
+				OriginalURL: record.OriginalURL,
+			}
+			urlPairs = append(urlPairs, pair)
+		}
+	}
+
+	return urlPairs, nil
+}
+
+// Заглушка
+func (fs *FileStorage) DeleteByUser(ctx context.Context, userID string, shortURL []string) error {
+	return nil
 }
 
 func (fs *FileStorage) loadData() (map[string]string, error) {
