@@ -11,6 +11,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/noedaka/go-url-shortener/internal/config"
+	"github.com/noedaka/go-url-shortener/internal/middleware"
 	"github.com/noedaka/go-url-shortener/internal/model"
 	"github.com/noedaka/go-url-shortener/internal/service"
 )
@@ -49,6 +50,8 @@ func (h *Handler) ShortenURLHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	middleware.LogAuditEvent(r.Context(), "shorten", originalURL)
+
 	shortURL := h.service.BaseURL + "/" + shortID
 
 	w.Header().Set("Content-Type", "text/plain")
@@ -78,6 +81,10 @@ func (h *Handler) APIShortenerHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "cannot shorten url", http.StatusInternalServerError)
 		return
 	}
+
+	
+    middleware.LogAuditEvent(r.Context(), "shorten", req.URL)
+    
 
 	shortURL := h.service.BaseURL + "/" + shortID
 
@@ -136,6 +143,8 @@ func (h *Handler) ShortIDHandler(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusGone)
 		return
 	}
+
+	middleware.LogAuditEvent(r.Context(), "follow", URL)
 
 	w.Header().Set("Location", URL)
 	w.WriteHeader(http.StatusTemporaryRedirect)

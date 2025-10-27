@@ -6,6 +6,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	_ "github.com/jackc/pgx/v5/stdlib"
+	"github.com/noedaka/go-url-shortener/internal/audit"
 	"github.com/noedaka/go-url-shortener/internal/config"
 	dbc "github.com/noedaka/go-url-shortener/internal/config/db"
 	"github.com/noedaka/go-url-shortener/internal/handler"
@@ -30,6 +31,26 @@ func Run() error {
 
 	logger.Log.Sugar().Infof("Server is on %s", cfg.ServerAddress)
 	logger.Log.Sugar().Infof("Base URL is %s", cfg.BaseURL)
+
+	auditManager := audit.NewAuditManager()
+    defer auditManager.Close()
+
+    if cfg.AuditFile != "" {
+        fileObserver, err := audit.NewFileObserver(cfg.AuditFile)
+        if err != nil {
+            logger.Log.Sugar().Errorf("Failed to create file audit observer: %v", err)
+        } else {
+            auditManager.RegisterObserver(fileObserver)
+            logger.Log.Sugar().Infof("File audit enabled: %s", cfg.AuditFile)
+        }
+    }
+
+    if cfg.AuditURL != "" {
+        httpObserver := audit.NewHTTPObserver(cfg.AuditURL)
+        auditManager.RegisterObserver(httpObserver)
+        logger.Log.Sugar().Infof("HTTP audit enabled: %s", cfg.AuditURL)
+    }
+
 
 	var db *sql.DB
 	var store storage.URLStorage
@@ -64,6 +85,7 @@ func Run() error {
 		r.Use(middleware.LoggingMiddleware)
 		r.Use(middleware.GzipMiddleware)
 		r.Use(middleware.AuthMiddleware)
+		r.Use(middleware.AuditMiddleware(auditManager))
 		r.Route("/api", func(r chi.Router) {
 			r.Route("/shorten", func(r chi.Router) {
 				r.Post("/", handlerURL.APIShortenerHandler)

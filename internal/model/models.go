@@ -42,6 +42,13 @@ type Claims struct {
 	UserID string `json:"user_id"`
 }
 
+type AuditEvent struct {
+    TS     int64  `json:"ts"`
+    Action string `json:"action"`
+    UserID string `json:"user_id"`
+    URL    string `json:"url"`
+}
+
 func (e *UniqueViolationError) Error() string {
 	return "unique violation"
 }
