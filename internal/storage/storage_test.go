@@ -71,3 +71,83 @@ func TestSaveEmptyValues(t *testing.T) {
 	assert.NoError(t, err, "Get for empty key failed")
 	assert.Equal(t, "", val, "Expected empty string for empty key")
 }
+
+func BenchmarkSave(b *testing.B) {
+	ctx := context.Background()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		b.StopTimer()
+		cleanup()
+		fs := NewFileStorage(testFilePath)
+		b.StartTimer()
+
+		err := fs.Save(ctx, "test-key", "https://example.com", "")
+		if err != nil {
+			b.Fatalf("Save failed: %v", err)
+		}
+	}
+}
+
+func BenchmarkGet(b *testing.B) {
+	ctx := context.Background()
+	fs := NewFileStorage(testFilePath)
+
+	err := fs.Save(ctx, "test-key", "https://example.com", "")
+	if err != nil {
+		b.Fatalf("Setup failed: %v", err)
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, err := fs.Get(ctx, "test-key")
+		if err != nil {
+			b.Fatalf("Get failed: %v", err)
+		}
+	}
+}
+
+func BenchmarkSaveAndGet(b *testing.B) {
+	ctx := context.Background()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		b.StopTimer()
+		cleanup()
+		fs := NewFileStorage(testFilePath)
+		b.StartTimer()
+
+		key := "test-key"
+		value := "https://example.com"
+		err := fs.Save(ctx, key, value, "")
+		if err != nil {
+			b.Fatalf("Save failed: %v", err)
+		}
+
+		_, err = fs.Get(ctx, key)
+		if err != nil {
+			b.Fatalf("Get failed: %v", err)
+		}
+	}
+}
+
+func BenchmarkMultipleSaves(b *testing.B) {
+	ctx := context.Background()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		b.StopTimer()
+		cleanup()
+		fs := NewFileStorage(testFilePath)
+		b.StartTimer()
+
+		for j := 0; j < 10; j++ {
+			key := string(rune('a' + j))
+			value := "https://example.com/" + key
+			err := fs.Save(ctx, key, value, "")
+			if err != nil {
+				b.Fatalf("Save failed for key %s: %v", key, err)
+			}
+		}
+	}
+}
