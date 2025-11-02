@@ -31,8 +31,7 @@ func Run() error {
 		return err
 	}
 
-
-	logger.Log.Info("server started", 
+	logger.Log.Info("server started",
 		zap.String("address", cfg.ServerAddress),
 		zap.String("base_url", cfg.BaseURL))
 
@@ -75,11 +74,11 @@ func Run() error {
 			return err
 		}
 
-		logger.Log.Info("config inited", 
+		logger.Log.Info("config inited",
 			zap.String("database dsn", cfg.DatabaseDSN))
 	} else {
 		store = storage.NewFileStorage(cfg.FileStoragePath)
-		logger.Log.Info("config inited", 
+		logger.Log.Info("config inited",
 			zap.String("file storage", cfg.FileStoragePath))
 	}
 

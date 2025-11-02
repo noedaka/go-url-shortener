@@ -96,7 +96,6 @@ func (e *URLNotFoundError) Error() string {
 	return "URL not found: " + e.ShortURL
 }
 
-
 func BenchmarkShortenURL(b *testing.B) {
 	ctx := context.Background()
 	mockStorage := NewMockStorage()
@@ -115,7 +114,7 @@ func BenchmarkGetURL(b *testing.B) {
 	ctx := context.Background()
 	mockStorage := NewMockStorage()
 	service := NewShortenerService(mockStorage, "http://localhost:8080")
-	
+
 	shortID, err := service.ShortenURL(ctx, "https://example.com", "user123")
 	if err != nil {
 		b.Fatalf("Setup failed: %v", err)
@@ -164,7 +163,7 @@ func BenchmarkShortenMultipleURLS(b *testing.B) {
 
 func BenchmarkGetURLByUser(b *testing.B) {
 	ctx := context.Background()
-	
+
 	mockStorage := NewMockStorageWithUserData()
 	service := NewShortenerService(mockStorage, "http://localhost:8080")
 
@@ -193,11 +192,10 @@ func BenchmarkDeleteShortURLSByUser(b *testing.B) {
 	}
 }
 
-
 type MockStorageWithUserData struct {
-	data      map[string]string
-	userURLs  map[string][]model.URLPair
-	baseURL   string
+	data     map[string]string
+	userURLs map[string][]model.URLPair
+	baseURL  string
 }
 
 func NewMockStorageWithUserData() *MockStorageWithUserData {

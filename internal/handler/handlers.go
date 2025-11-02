@@ -82,9 +82,7 @@ func (h *Handler) APIShortenerHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	
-    middleware.LogAuditEvent(r.Context(), "shorten", req.URL)
-    
+	middleware.LogAuditEvent(r.Context(), "shorten", req.URL)
 
 	shortURL := h.service.BaseURL + "/" + shortID
 
