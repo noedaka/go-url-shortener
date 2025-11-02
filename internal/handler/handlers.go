@@ -1,3 +1,4 @@
+// Модуль handler предоставляет хэндлеры для сервиса сокращения URL.
 package handler
 
 import (
@@ -16,15 +17,22 @@ import (
 	"github.com/noedaka/go-url-shortener/internal/service"
 )
 
+// Handler предоставляет методы для обработки HTTP-запросов.
 type Handler struct {
 	service service.ShortenerService
 	db      *sql.DB
 }
 
+// NewHandler создает новый экземпляр Handler.
 func NewHandler(service service.ShortenerService, db *sql.DB) *Handler {
 	return &Handler{service: service, db: db}
 }
 
+// ShortenURLHandler создает короткий URL из переданного URL.
+//
+// Принимает text/plain, возвращает короткий URL в text/plain.
+//
+// POST /
 func (h *Handler) ShortenURLHandler(w http.ResponseWriter, r *http.Request) {
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
@@ -59,6 +67,11 @@ func (h *Handler) ShortenURLHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(shortURL))
 }
 
+// APIShortenerHandler создает короткий URL из переданного URL.
+//
+// Принимает application/json, возвращает короткий URL в application/json.
+//
+// POST /api/shorten
 func (h *Handler) APIShortenerHandler(w http.ResponseWriter, r *http.Request) {
 	var req model.Request
 
@@ -100,6 +113,11 @@ func (h *Handler) APIShortenerHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// APIUserUrlsHandler возвращает все сокращенные текущим пользователем пары URL.
+//
+// Возвращает короткие и оригинальные URL в application/json.
+//
+// GET /user/urls
 func (h *Handler) APIUserUrlsHandler(w http.ResponseWriter, r *http.Request) {
 	userID, ok := getUserIDFromContext(r.Context())
 	if !ok {
@@ -128,6 +146,9 @@ func (h *Handler) APIUserUrlsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// ShortIDHandler делает редирект на оригинальный URL по его короткой версии.
+//
+// GET /{id}
 func (h *Handler) ShortIDHandler(w http.ResponseWriter, r *http.Request) {
 	shortID := chi.URLParam(r, "id")
 
@@ -148,15 +169,11 @@ func (h *Handler) ShortIDHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusTemporaryRedirect)
 }
 
-func (h *Handler) PingDBHandler(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-	defer cancel()
-	if err := h.db.PingContext(ctx); err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-	}
-	w.WriteHeader(http.StatusOK)
-}
-
+// ShortenBatchHandler создает короткие URL каждому переданному URL.
+//
+// Принимает application/json/ возвращает batchResponse в application/json.
+//
+// POST /api/shortem/batch
 func (h *Handler) ShortenBatchHandler(w http.ResponseWriter, r *http.Request) {
 	var batchRequest []model.BatchRequest
 
@@ -192,6 +209,11 @@ func (h *Handler) ShortenBatchHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// APIDeleteShortURLSHandler удаляет все переданные сокращенные URL текущего пользователя.
+//
+// Принимает application/json
+//
+// DELETE /user/urls
 func (h *Handler) APIDeleteShortURLSHandler(w http.ResponseWriter, r *http.Request) {
 	userID, ok := getUserIDFromContext(r.Context())
 	if !ok {
@@ -211,6 +233,16 @@ func (h *Handler) APIDeleteShortURLSHandler(w http.ResponseWriter, r *http.Reque
 	}
 
 	w.WriteHeader(http.StatusAccepted)
+}
+
+// PingDBHandler пингует БД.
+func (h *Handler) PingDBHandler(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+	if err := h.db.PingContext(ctx); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+	}
+	w.WriteHeader(http.StatusOK)
 }
 
 func (h *Handler) handleShortenError(w http.ResponseWriter, err error, contentType string) (handled bool) {

@@ -5,6 +5,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -611,4 +613,242 @@ func TestHandler_APIDeleteShortURLSHandler(t *testing.T) {
 			assert.Equal(t, tt.wantStatus, rr.Code)
 		})
 	}
+}
+
+// ExampleHandler_ShortenURLHandler демонстрирует использование эндпоинта для сокращения URL 
+func ExampleHandler_ShortenURLHandler() {
+	// Создаем мок хранилища и сервис
+	mockStorage := NewMockStorage()
+	svc := service.NewShortenerService(mockStorage, "http://localhost:8080")
+	h := NewHandler(*svc, nil)
+
+	// Создаем router и настраиваем маршруты
+	r := chi.NewRouter()
+	r.Post("/", h.ShortenURLHandler)
+
+	// Создаем тестовый сервер
+	ts := httptest.NewServer(r)
+	defer ts.Close()
+
+	// Подготавливаем данные для запроса
+	body := bytes.NewBufferString("https://example.com")
+
+	// Выполняем POST запрос
+	resp, err := http.Post(ts.URL+"/", "text/plain", body)
+	if err != nil {
+		fmt.Printf("Error making request: %v\n", err)
+		return
+	}
+	defer resp.Body.Close()
+
+	// Читаем ответ
+	respBody, _ := io.ReadAll(resp.Body)
+	fmt.Printf("Status: %d\n", resp.StatusCode)
+	fmt.Printf("Response: %s\n", string(respBody))
+
+	// Output:
+	// Status: 201
+	// Response: http://localhost:8080/
+}
+
+// ExampleHandler_APIShortenerHandler демонстрирует использование эндпоинта для сокращения URL
+func ExampleHandler_APIShortenerHandler() {
+	mockStorage := NewMockStorage()
+	svc := service.NewShortenerService(mockStorage, "http://localhost:8080")
+	h := NewHandler(*svc, nil)
+
+	r := chi.NewRouter()
+	r.Post("/api/shorten", h.APIShortenerHandler)
+
+	ts := httptest.NewServer(r)
+	defer ts.Close()
+
+	// Подготавливаем JSON данные
+	requestData := map[string]string{"url": "https://example.com"}
+	jsonData, _ := json.Marshal(requestData)
+
+	resp, err := http.Post(ts.URL+"/api/shorten", "application/json", bytes.NewBuffer(jsonData))
+	if err != nil {
+		fmt.Printf("Error making request: %v\n", err)
+		return
+	}
+	defer resp.Body.Close()
+
+	respBody, _ := io.ReadAll(resp.Body)
+	fmt.Printf("Status: %d\n", resp.StatusCode)
+	fmt.Printf("Content-Type: %s\n", resp.Header.Get("Content-Type"))
+	fmt.Printf("Response: %s\n", string(respBody))
+
+	// Output:
+	// Status: 201
+	// Content-Type: application/json
+	// Response: {"result":"http://localhost:8080/
+}
+
+// ExampleHandler_ShortIDHandler демонстрирует использование эндпоинта для получения оригинального URL
+func ExampleHandler_ShortIDHandler() {
+	mockStorage := NewMockStorage()
+	// Добавляем тестовые данные в хранилище
+	mockStorage.AddURL("abc123", "https://example.com")
+	
+	svc := service.NewShortenerService(mockStorage, "http://localhost:8080")
+	h := NewHandler(*svc, nil)
+
+	r := chi.NewRouter()
+	r.Get("/{id}", h.ShortIDHandler)
+
+	ts := httptest.NewServer(r)
+	defer ts.Close()
+
+	// Выполняем GET запрос для существующего URL
+	resp, err := http.Get(ts.URL + "/abc123")
+	if err != nil {
+		fmt.Printf("Error making request: %v\n", err)
+		return
+	}
+	defer resp.Body.Close()
+
+	fmt.Printf("Status: %d\n", resp.StatusCode)
+	fmt.Printf("Location: %s\n", resp.Header.Get("Location"))
+
+	// Output:
+	// Status: 307
+	// Location: https://example.com
+}
+
+// ExampleHandler_ShortenBatchHandler демонстрирует использование эндпоинта для сокращения множества URL
+func ExampleHandler_ShortenBatchHandler() {
+	mockStorage := NewMockStorage()
+	svc := service.NewShortenerService(mockStorage, "http://localhost:8080")
+	h := NewHandler(*svc, nil)
+
+	r := chi.NewRouter()
+	r.Post("/api/shorten/batch", h.ShortenBatchHandler)
+
+	ts := httptest.NewServer(r)
+	defer ts.Close()
+
+	// Подготавливаем batch данные
+	batchRequest := []model.BatchRequest{
+		{CorrelationID: "1", URL: "https://example.com/1"},
+		{CorrelationID: "2", URL: "https://example.com/2"},
+	}
+	jsonData, _ := json.Marshal(batchRequest)
+
+	resp, err := http.Post(ts.URL+"/api/shorten/batch", "application/json", bytes.NewBuffer(jsonData))
+	if err != nil {
+		fmt.Printf("Error making request: %v\n", err)
+		return
+	}
+	defer resp.Body.Close()
+
+	respBody, _ := io.ReadAll(resp.Body)
+	fmt.Printf("Status: %d\n", resp.StatusCode)
+	fmt.Printf("Content-Type: %s\n", resp.Header.Get("Content-Type"))
+	fmt.Printf("Response contains correlation IDs: %v\n", bytes.Contains(respBody, []byte("1")) && bytes.Contains(respBody, []byte("2")))
+
+	// Output:
+	// Status: 201
+	// Content-Type: application/json
+	// Response contains correlation IDs: true
+}
+
+// ExampleHandler_APIUserUrlsHandler демонстрирует использование эндпоинта для получения URL пользователя
+func ExampleHandler_APIUserUrlsHandler() {
+	mockStorage := NewMockStorage()
+	// Добавляем тестовые данные для пользователя
+	mockStorage.AddURLForUser("short1", "https://example.com/1", "test-user")
+	mockStorage.AddURLForUser("short2", "https://example.com/2", "test-user")
+	
+	svc := service.NewShortenerService(mockStorage, "http://localhost:8080")
+	h := NewHandler(*svc, nil)
+
+	r := chi.NewRouter()
+	r.Get("/api/user/urls", h.APIUserUrlsHandler)
+
+	ts := httptest.NewServer(r)
+	defer ts.Close()
+
+	// Создаем запрос с userID в контексте
+	req, _ := http.NewRequest("GET", ts.URL+"/api/user/urls", nil)
+	ctx := context.WithValue(req.Context(), config.UserIDKey, "test-user")
+	req = req.WithContext(ctx)
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		fmt.Printf("Error making request: %v\n", err)
+		return
+	}
+	defer resp.Body.Close()
+
+	respBody, _ := io.ReadAll(resp.Body)
+	fmt.Printf("Status: %d\n", resp.StatusCode)
+	fmt.Printf("Response contains user URLs: %v\n", bytes.Contains(respBody, []byte("short1")) && bytes.Contains(respBody, []byte("short2")))
+
+	// Output:
+	// Status: 200
+	// Response contains user URLs: true
+}
+
+// ExampleHandler_APIDeleteShortURLSHandler демонстрирует использование эндпоинта для удаления URL
+func ExampleHandler_APIDeleteShortURLSHandler() {
+	mockStorage := NewMockStorage()
+	svc := service.NewShortenerService(mockStorage, "http://localhost:8080")
+	h := NewHandler(*svc, nil)
+
+	r := chi.NewRouter()
+	r.Delete("/api/user/urls", h.APIDeleteShortURLSHandler)
+
+	ts := httptest.NewServer(r)
+	defer ts.Close()
+
+	// Подготавливаем данные для удаления
+	deleteRequest := []string{"short1", "short2"}
+	jsonData, _ := json.Marshal(deleteRequest)
+
+	req, _ := http.NewRequest("DELETE", ts.URL+"/api/user/urls", bytes.NewBuffer(jsonData))
+	req.Header.Set("Content-Type", "application/json")
+	
+	// Добавляем userID в контекст
+	ctx := context.WithValue(req.Context(), config.UserIDKey, "test-user")
+	req = req.WithContext(ctx)
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		fmt.Printf("Error making request: %v\n", err)
+		return
+	}
+	defer resp.Body.Close()
+
+	fmt.Printf("Status: %d\n", resp.StatusCode)
+
+	// Output:
+	// Status: 202
+}
+
+// ExampleHandler_PingDBHandler демонстрирует использование эндпоинта для проверки соединения с БД
+func ExampleHandler_PingDBHandler() {
+	mockStorage := NewMockStorage()
+	svc := service.NewShortenerService(mockStorage, "http://localhost:8080")
+	h := NewHandler(*svc, nil)
+
+	r := chi.NewRouter()
+	r.Get("/ping", h.PingDBHandler)
+
+	ts := httptest.NewServer(r)
+	defer ts.Close()
+
+	resp, err := http.Get(ts.URL + "/ping")
+	if err != nil {
+		fmt.Printf("Error making request: %v\n", err)
+		return
+	}
+	defer resp.Body.Close()
+
+	fmt.Printf("Status: %d\n", resp.StatusCode)
+
+	// Output:
+	// Status: 200
 }

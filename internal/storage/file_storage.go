@@ -12,6 +12,7 @@ import (
 	"github.com/noedaka/go-url-shortener/internal/model"
 )
 
+// FileStorage реализует Storage интерфейс используя in-memory хранилище.
 type FileStorage struct {
 	filePath string
 	mu       sync.RWMutex
@@ -25,6 +26,7 @@ type record struct {
 	UserID      string `json:"user_id"`
 }
 
+// NewPostgresStorage создает новый экземпляр FileStorage.
 func NewFileStorage(filePath string) *FileStorage {
 	fs := &FileStorage{
 		filePath: filePath,
@@ -39,6 +41,7 @@ func NewFileStorage(filePath string) *FileStorage {
 	return fs
 }
 
+// Save сохраняет сокращенный URL и оригинальный URL в хранилище указанного пользователя.
 func (fs *FileStorage) Save(ctx context.Context, shortURL, originalURL, userID string) error {
 	record := record{
 		UUID:        uuid.New().String(),
@@ -58,6 +61,7 @@ func (fs *FileStorage) Save(ctx context.Context, shortURL, originalURL, userID s
 	return nil
 }
 
+// Get возращает оригинальный URL по сокращенному.
 func (fs *FileStorage) Get(ctx context.Context, shortURL string) (string, error) {
 	fs.mu.RLock()
 	defer fs.mu.RUnlock()
@@ -68,6 +72,7 @@ func (fs *FileStorage) Get(ctx context.Context, shortURL string) (string, error)
 	return "", errors.New("URL not found")
 }
 
+// GetByUser возвращает все пары URL когда либо сокращенных указанным пользователем.
 func (fs *FileStorage) GetByUser(ctx context.Context, userID string) ([]model.URLPair, error) {
 	fs.mu.RLock()
 	defer fs.mu.RUnlock()
@@ -91,7 +96,7 @@ func (fs *FileStorage) GetByUser(ctx context.Context, userID string) ([]model.UR
 	return urlPairs, nil
 }
 
-// Заглушка
+// DeleteByUser - заглушка, так как для in-memory не нужна.
 func (fs *FileStorage) DeleteByUser(ctx context.Context, userID string, shortURL []string) error {
 	return nil
 }
