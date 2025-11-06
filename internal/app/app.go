@@ -41,17 +41,21 @@ func Run() error {
 	if cfg.AuditFile != "" {
 		fileObserver, err := audit.NewFileObserver(cfg.AuditFile)
 		if err != nil {
-			logger.Log.Sugar().Errorf("Failed to create file audit observer: %v", err)
+			logger.Log.Error("failed to create file audit observer",
+    			zap.Error(err),
+    			zap.String("file", cfg.AuditFile))
 		} else {
 			auditManager.RegisterObserver(fileObserver)
-			logger.Log.Sugar().Infof("File audit enabled: %s", cfg.AuditFile)
+			logger.Log.Info("file audit enabled",
+				zap.String("file address", cfg.AuditFile))
 		}
 	}
 
 	if cfg.AuditURL != "" {
 		httpObserver := audit.NewHTTPObserver(cfg.AuditURL)
 		auditManager.RegisterObserver(httpObserver)
-		logger.Log.Sugar().Infof("HTTP audit enabled: %s", cfg.AuditURL)
+		logger.Log.Info("HTTP audit enabled",
+			zap.String("HTTP address", cfg.AuditURL))
 	}
 
 	var db *sql.DB
@@ -105,6 +109,7 @@ func Run() error {
 		r.Get("/ping", handlerURL.PingDBHandler)
 	})
 
+	// pprof routing
 	r.Route("/debug/pprof", func(r chi.Router) {
 		r.Get("/", pprof.Index)
 		r.Get("/cmdline", pprof.Cmdline)

@@ -164,7 +164,7 @@ func BenchmarkShortenMultipleURLS(b *testing.B) {
 func BenchmarkGetURLByUser(b *testing.B) {
 	ctx := context.Background()
 
-	mockStorage := NewMockStorageWithUserData()
+	mockStorage := NewFakeStorageWithUserData()
 	service := NewShortenerService(mockStorage, "http://localhost:8080")
 
 	b.ResetTimer()
@@ -178,7 +178,7 @@ func BenchmarkGetURLByUser(b *testing.B) {
 
 func BenchmarkDeleteShortURLSByUser(b *testing.B) {
 	ctx := context.Background()
-	mockStorage := NewMockStorageWithUserData()
+	mockStorage := NewFakeStorageWithUserData()
 	service := NewShortenerService(mockStorage, "http://localhost:8080")
 
 	shortURLs := []string{"abc123", "def456", "ghi789"}
@@ -192,21 +192,21 @@ func BenchmarkDeleteShortURLSByUser(b *testing.B) {
 	}
 }
 
-type MockStorageWithUserData struct {
+type FakeStorageWithUserData struct {
 	data     map[string]string
 	userURLs map[string][]model.URLPair
 	baseURL  string
 }
 
-func NewMockStorageWithUserData() *MockStorageWithUserData {
-	return &MockStorageWithUserData{
+func NewFakeStorageWithUserData() *FakeStorageWithUserData {
+	return &FakeStorageWithUserData{
 		data:     make(map[string]string),
 		userURLs: make(map[string][]model.URLPair),
 		baseURL:  "",
 	}
 }
 
-func (m *MockStorageWithUserData) Save(ctx context.Context, shortURL, originalURL, userID string) error {
+func (m *FakeStorageWithUserData) Save(ctx context.Context, shortURL, originalURL, userID string) error {
 	m.data[shortURL] = originalURL
 	if userID != "" {
 		m.userURLs[userID] = append(m.userURLs[userID], model.URLPair{
@@ -217,21 +217,21 @@ func (m *MockStorageWithUserData) Save(ctx context.Context, shortURL, originalUR
 	return nil
 }
 
-func (m *MockStorageWithUserData) Get(ctx context.Context, shortURL string) (string, error) {
+func (m *FakeStorageWithUserData) Get(ctx context.Context, shortURL string) (string, error) {
 	if url, exists := m.data[shortURL]; exists {
 		return url, nil
 	}
 	return "", &URLNotFoundError{ShortURL: shortURL}
 }
 
-func (m *MockStorageWithUserData) GetByUser(ctx context.Context, userID string) ([]model.URLPair, error) {
+func (m *FakeStorageWithUserData) GetByUser(ctx context.Context, userID string) ([]model.URLPair, error) {
 	if urls, exists := m.userURLs[userID]; exists {
 		return urls, nil
 	}
 	return []model.URLPair{}, nil
 }
 
-func (m *MockStorageWithUserData) DeleteByUser(ctx context.Context, userID string, shortURLs []string) error {
+func (m *FakeStorageWithUserData) DeleteByUser(ctx context.Context, userID string, shortURLs []string) error {
 	if _, exists := m.userURLs[userID]; exists {
 		newURLs := []model.URLPair{}
 		for _, pair := range m.userURLs[userID] {

@@ -2,6 +2,7 @@ package audit
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"sync"
 
@@ -27,16 +28,20 @@ func NewFileObserver(filePath string) (*FileObserver, error) {
 }
 
 func (o *FileObserver) Notify(event model.AuditEvent) error {
-	o.mu.Lock()
-	defer o.mu.Unlock()
-
 	data, err := json.Marshal(event)
 	if err != nil {
 		return err
 	}
 
+	o.mu.Lock()
+	defer o.mu.Unlock()
+
 	_, err = o.file.Write(append(data, '\n'))
-	return err
+	if err != nil {
+		return fmt.Errorf("write audit event to file: %w", err)
+	}
+
+	return nil
 }
 
 func (o *FileObserver) Close() error {
