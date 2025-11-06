@@ -42,8 +42,8 @@ func Run() error {
 		fileObserver, err := audit.NewFileObserver(cfg.AuditFile)
 		if err != nil {
 			logger.Log.Error("failed to create file audit observer",
-    			zap.Error(err),
-    			zap.String("file", cfg.AuditFile))
+				zap.Error(err),
+				zap.String("file", cfg.AuditFile))
 		} else {
 			auditManager.RegisterObserver(fileObserver)
 			logger.Log.Info("file audit enabled",
