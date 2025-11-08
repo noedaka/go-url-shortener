@@ -16,6 +16,8 @@ type Config struct {
 	BaseURL         string `env:"BASE_URL"`
 	FileStoragePath string `env:"FILE_STORAGE_PATH"`
 	DatabaseDSN     string `env:"DATABASE_DSN"`
+	AuditFile       string `env:"AUDIT_FILE"`
+	AuditURL        string `env:"AUDIT_URL"`
 }
 
 const UserIDKey model.ContextKey = "user_id"
@@ -38,6 +40,8 @@ func Init() (*Config, bool) {
 	flag.StringVar(&cfg.BaseURL, "b", cfg.BaseURL, "Base URL")
 	flag.StringVar(&cfg.FileStoragePath, "f", cfg.FileStoragePath, "File storage path")
 	flag.StringVar(&cfg.DatabaseDSN, "d", cfg.DatabaseDSN, "Database DSN")
+	flag.StringVar(&cfg.AuditFile, "audit-file", cfg.AuditFile, "Audit file")
+	flag.StringVar(&cfg.AuditURL, "audit-url", cfg.AuditURL, "Audit URL")
 	flag.Parse()
 
 	if cfg.ServerAddress == "" {

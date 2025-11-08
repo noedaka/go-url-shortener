@@ -3,9 +3,11 @@ package app
 import (
 	"database/sql"
 	"net/http"
+	"net/http/pprof"
 
 	"github.com/go-chi/chi/v5"
 	_ "github.com/jackc/pgx/v5/stdlib"
+	"github.com/noedaka/go-url-shortener/internal/audit"
 	"github.com/noedaka/go-url-shortener/internal/config"
 	dbc "github.com/noedaka/go-url-shortener/internal/config/db"
 	"github.com/noedaka/go-url-shortener/internal/handler"
@@ -13,6 +15,7 @@ import (
 	"github.com/noedaka/go-url-shortener/internal/middleware"
 	"github.com/noedaka/go-url-shortener/internal/service"
 	"github.com/noedaka/go-url-shortener/internal/storage"
+	"go.uber.org/zap"
 )
 
 func Run() error {
@@ -28,8 +31,32 @@ func Run() error {
 		return err
 	}
 
-	logger.Log.Sugar().Infof("Server is on %s", cfg.ServerAddress)
-	logger.Log.Sugar().Infof("Base URL is %s", cfg.BaseURL)
+	logger.Log.Info("server started",
+		zap.String("address", cfg.ServerAddress),
+		zap.String("base_url", cfg.BaseURL))
+
+	auditManager := audit.NewAuditManager()
+	defer auditManager.Close()
+
+	if cfg.AuditFile != "" {
+		fileObserver, err := audit.NewFileObserver(cfg.AuditFile)
+		if err != nil {
+			logger.Log.Error("failed to create file audit observer",
+				zap.Error(err),
+				zap.String("file", cfg.AuditFile))
+		} else {
+			auditManager.RegisterObserver(fileObserver)
+			logger.Log.Info("file audit enabled",
+				zap.String("file address", cfg.AuditFile))
+		}
+	}
+
+	if cfg.AuditURL != "" {
+		httpObserver := audit.NewHTTPObserver(cfg.AuditURL)
+		auditManager.RegisterObserver(httpObserver)
+		logger.Log.Info("HTTP audit enabled",
+			zap.String("HTTP address", cfg.AuditURL))
+	}
 
 	var db *sql.DB
 	var store storage.URLStorage
@@ -51,10 +78,12 @@ func Run() error {
 			return err
 		}
 
-		logger.Log.Sugar().Infof("Base Database DSN is %s", cfg.DatabaseDSN)
+		logger.Log.Info("config inited",
+			zap.String("database dsn", cfg.DatabaseDSN))
 	} else {
 		store = storage.NewFileStorage(cfg.FileStoragePath)
-		logger.Log.Sugar().Infof("Base file storage is %s", cfg.FileStoragePath)
+		logger.Log.Info("config inited",
+			zap.String("file storage", cfg.FileStoragePath))
 	}
 
 	service := service.NewShortenerService(store, cfg.BaseURL)
@@ -64,6 +93,7 @@ func Run() error {
 		r.Use(middleware.LoggingMiddleware)
 		r.Use(middleware.GzipMiddleware)
 		r.Use(middleware.AuthMiddleware)
+		r.Use(middleware.AuditMiddleware(auditManager))
 		r.Route("/api", func(r chi.Router) {
 			r.Route("/shorten", func(r chi.Router) {
 				r.Post("/", handlerURL.APIShortenerHandler)
@@ -77,6 +107,20 @@ func Run() error {
 		r.Post("/", handlerURL.ShortenURLHandler)
 		r.Get("/{id}", handlerURL.ShortIDHandler)
 		r.Get("/ping", handlerURL.PingDBHandler)
+	})
+
+	// pprof routing
+	r.Route("/debug/pprof", func(r chi.Router) {
+		r.Get("/", pprof.Index)
+		r.Get("/cmdline", pprof.Cmdline)
+		r.Get("/profile", pprof.Profile)
+		r.Get("/symbol", pprof.Symbol)
+		r.Get("/trace", pprof.Trace)
+		r.Get("/heap", pprof.Handler("heap").ServeHTTP)
+		r.Get("/goroutine", pprof.Handler("goroutine").ServeHTTP)
+		r.Get("/block", pprof.Handler("block").ServeHTTP)
+		r.Get("/threadcreate", pprof.Handler("threadcreate").ServeHTTP)
+		r.Get("/allocs", pprof.Handler("allocs").ServeHTTP)
 	})
 
 	if err := http.ListenAndServe(cfg.ServerAddress, r); err != nil {

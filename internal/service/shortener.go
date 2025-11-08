@@ -1,3 +1,4 @@
+// Модуль service определяет операции над URL.
 package service
 
 import (
@@ -9,12 +10,16 @@ import (
 	"github.com/noedaka/go-url-shortener/internal/storage"
 )
 
+// ShortenerService реализует операции над URL.
 type ShortenerService struct {
+	// storage для работы с хранилищем URL.
 	storage storage.URLStorage
+	// BaseURL представляет адрес используемый сервером приложения.
 	BaseURL string
 	rand    *rand.Rand
 }
 
+// NewShortenerService создает новый экземпляр ShortenerService.
 func NewShortenerService(storage storage.URLStorage, baseURL string) *ShortenerService {
 	return &ShortenerService{
 		storage: storage,
@@ -23,10 +28,12 @@ func NewShortenerService(storage storage.URLStorage, baseURL string) *ShortenerS
 	}
 }
 
+// GetURL возвращает полный URL по его сокращенному ID.
 func (s *ShortenerService) GetURL(ctx context.Context, shortID string) (string, error) {
 	return s.storage.Get(ctx, shortID)
 }
 
+// GetURLByUser возращает все пары сокращенного URL и оригинального URL, когда либо сокращенные указанным пользователем.
 func (s *ShortenerService) GetURLByUser(ctx context.Context, userID string) ([]model.URLPair, error) {
 	urlPairs, err := s.storage.GetByUser(ctx, userID)
 	if err != nil {
@@ -38,6 +45,7 @@ func (s *ShortenerService) GetURLByUser(ctx context.Context, userID string) ([]m
 	return urlPairs, nil
 }
 
+// DeleteShortURLSByUser удаляет сокращенные URL указанного пользователя.
 func (s *ShortenerService) DeleteShortURLSByUser(ctx context.Context, userID string, shortURL []string) error {
 	if len(shortURL) == 0 {
 		return nil
@@ -49,6 +57,7 @@ func (s *ShortenerService) DeleteShortURLSByUser(ctx context.Context, userID str
 	return nil
 }
 
+// ShortenURL создает сокращенный URL и сохраняет его в хранилище указанного пользователя.
 func (s *ShortenerService) ShortenURL(ctx context.Context, originalURL, userID string) (string, error) {
 	shortID := s.generateShortID()
 	err := s.storage.Save(ctx, shortID, originalURL, userID)
@@ -60,6 +69,7 @@ func (s *ShortenerService) ShortenURL(ctx context.Context, originalURL, userID s
 	return shortID, nil
 }
 
+// ShortenMultipleURLS создает сокращенные URL для слайса URL.
 func (s *ShortenerService) ShortenMultipleURLS(ctx context.Context, batchRequest []model.BatchRequest, userID string) ([]model.BatchResponse, error) {
 	var batchResponse []model.BatchResponse
 	for _, request := range batchRequest {

@@ -13,14 +13,17 @@ import (
 	"github.com/noedaka/go-url-shortener/internal/model"
 )
 
+// PostgressStorage реализует Storage интерфейс используя PostgreSQL
 type PostgresStorage struct {
 	db *sql.DB
 }
 
+// NewPostgresStorage создает новый экземпляр PostgresStorage.
 func NewPostgresStorage(db *sql.DB) (*PostgresStorage, error) {
 	return &PostgresStorage{db: db}, nil
 }
 
+// Save сохраняет сокращенный URL и оригинальный URL в хранилище указанного пользователя
 func (ps *PostgresStorage) Save(ctx context.Context, shortURL, originalURL, userID string) error {
 	_, err := ps.db.ExecContext(ctx, "INSERT INTO urls (short_url, original_url, user_id) VALUES ($1, $2, $3)",
 		shortURL, originalURL, userID)
@@ -40,6 +43,7 @@ func (ps *PostgresStorage) Save(ctx context.Context, shortURL, originalURL, user
 	return nil
 }
 
+// Get возращает оригинальный URL по сокращенному
 func (ps *PostgresStorage) Get(ctx context.Context, shortURL string) (string, error) {
 	var originalURL string
 	var isDeleted bool
@@ -58,6 +62,7 @@ func (ps *PostgresStorage) Get(ctx context.Context, shortURL string) (string, er
 	return originalURL, nil
 }
 
+// GetByUser возвращает все пары URL когда либо сокращенных указанным пользователем
 func (ps *PostgresStorage) GetByUser(ctx context.Context, userID string) ([]model.URLPair, error) {
 	var urlPairs []model.URLPair
 	rows, err := ps.db.QueryContext(ctx,
@@ -87,6 +92,7 @@ func (ps *PostgresStorage) GetByUser(ctx context.Context, userID string) ([]mode
 	return urlPairs, nil
 }
 
+// DeleteByUser удаляет сокращенные URL указанного пользователя
 func (ps *PostgresStorage) DeleteByUser(ctx context.Context, userID string, shortURL []string) error {
 	if err := ps.fanInUpdate(ctx, userID, shortURL); err != nil {
 		return err
