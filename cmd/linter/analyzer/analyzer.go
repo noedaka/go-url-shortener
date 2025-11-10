@@ -21,7 +21,7 @@ func run(pass *analysis.Pass) (any, error) {
 						pass.Reportf(ident.Pos(), "panic call")
 					}
 				}
-				
+
 				if selExpr, ok := callExpr.Fun.(*ast.SelectorExpr); ok {
 					if ident, ok := selExpr.X.(*ast.Ident); ok {
 						if pass.Pkg.Name() != "main" {
