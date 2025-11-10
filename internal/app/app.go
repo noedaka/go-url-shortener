@@ -26,7 +26,11 @@ func Run() error {
 	}
 	logger.Log.Sync()
 
-	cfg, isDB := config.Init()
+	cfg, isDB, err := config.Init()
+	if err != nil {
+		return err
+	}
+
 	if err := cfg.ValidateConfig(); err != nil {
 		return err
 	}
