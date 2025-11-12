@@ -83,76 +83,94 @@ func NewGenerator() (*Generator, error) {
 
 // ProcessPackage обрабатывает один пакет
 func (g *Generator) ProcessPackage(pkgPath string) error {
-	fset := token.NewFileSet()
-	pkgs, err := parser.ParseDir(fset, pkgPath, func(info os.FileInfo) bool {
-		return !strings.HasSuffix(info.Name(), "_test.go") &&
-			!strings.HasSuffix(info.Name(), ".gen.go")
-	}, parser.ParseComments)
-	if err != nil {
-		return err
-	}
+    structs, pkgName, err := g.findResetStructs(pkgPath)
+    if err != nil {
+        return fmt.Errorf("failed to parse package %s: %w", pkgPath, err)
+    }
 
-	for _, pkg := range pkgs {
-		structs := g.findResetStructs(pkg)
-		if len(structs) > 0 {
-			if err := g.generatePackageFile(pkgPath, pkg.Name, structs); err != nil {
-				return err
-			}
-		}
-	}
+    if len(structs) > 0 {
+        if err := g.generatePackageFile(pkgPath, pkgName, structs); err != nil {
+            return fmt.Errorf("failed to generate file for package %s: %w", pkgPath, err)
+        }
+    }
 
-	return nil
+    return nil
 }
 
 // findResetStructs находит структуры с комментарием // generate:reset
-func (g *Generator) findResetStructs(pkg *ast.Package) []templateEnum {
-	var structs []templateEnum
+func (g *Generator) findResetStructs(pkgPath string) ([]templateEnum, string, error) {
+    fset := token.NewFileSet()
+    var structs []templateEnum
+    var pkgName string
 
-	for _, file := range pkg.Files {
-		ast.Inspect(file, func(n ast.Node) bool {
-			genDecl, ok := n.(*ast.GenDecl)
-			if !ok || genDecl.Tok != token.TYPE {
-				return true
-			}
+    entries, err := os.ReadDir(pkgPath)
+    if err != nil {
+        return nil, "", fmt.Errorf("failed to read package directory: %w", err)
+    }
 
-			hasResetComment := false
-			if genDecl.Doc != nil {
-				for _, comment := range genDecl.Doc.List {
-					if strings.Contains(comment.Text, "generate:reset") {
-						hasResetComment = true
-						break
-					}
-				}
-			}
+    for _, entry := range entries {
+        if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".go") {
+            continue
+        }
 
-			if !hasResetComment {
-				return true
-			}
+        if strings.HasSuffix(entry.Name(), "_test.go") || strings.HasSuffix(entry.Name(), ".gen.go") {
+            continue
+        }
 
-			for _, spec := range genDecl.Specs {
-				typeSpec, ok := spec.(*ast.TypeSpec)
-				if !ok {
-					continue
-				}
+        filename := filepath.Join(pkgPath, entry.Name())
+        file, err := parser.ParseFile(fset, filename, nil, parser.ParseComments)
+        if err != nil {
+            return nil, "", fmt.Errorf("failed to parse file %s: %w", filename, err)
+        }
 
-				structType, ok := typeSpec.Type.(*ast.StructType)
-				if !ok {
-					continue
-				}
+        if pkgName == "" {
+            pkgName = file.Name.Name
+        }
 
-				structInfo := templateEnum{
-					StructType: typeSpec.Name.Name,
-					Entries:    g.collectStructFields(structType),
-				}
+        ast.Inspect(file, func(n ast.Node) bool {
+            genDecl, ok := n.(*ast.GenDecl)
+            if !ok || genDecl.Tok != token.TYPE {
+                return true
+            }
 
-				structs = append(structs, structInfo)
-			}
+            hasResetComment := false
+            if genDecl.Doc != nil {
+                for _, comment := range genDecl.Doc.List {
+                    if strings.Contains(comment.Text, "generate:reset") {
+                        hasResetComment = true
+                        break
+                    }
+                }
+            }
 
-			return true
-		})
-	}
+            if !hasResetComment {
+                return true
+            }
 
-	return structs
+            for _, spec := range genDecl.Specs {
+                typeSpec, ok := spec.(*ast.TypeSpec)
+                if !ok {
+                    continue
+                }
+
+                structType, ok := typeSpec.Type.(*ast.StructType)
+                if !ok {
+                    continue
+                }
+
+                structInfo := templateEnum{
+                    StructType: typeSpec.Name.Name,
+                    Entries:    g.collectStructFields(structType),
+                }
+
+                structs = append(structs, structInfo)
+            }
+
+            return true
+        })
+    }
+
+    return structs, pkgName, nil
 }
 
 // collectStructFields собирает информацию о полях структуры
