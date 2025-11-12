@@ -83,94 +83,94 @@ func NewGenerator() (*Generator, error) {
 
 // ProcessPackage обрабатывает один пакет
 func (g *Generator) ProcessPackage(pkgPath string) error {
-    structs, pkgName, err := g.findResetStructs(pkgPath)
-    if err != nil {
-        return fmt.Errorf("failed to parse package %s: %w", pkgPath, err)
-    }
+	structs, pkgName, err := g.findResetStructs(pkgPath)
+	if err != nil {
+		return fmt.Errorf("failed to parse package %s: %w", pkgPath, err)
+	}
 
-    if len(structs) > 0 {
-        if err := g.generatePackageFile(pkgPath, pkgName, structs); err != nil {
-            return fmt.Errorf("failed to generate file for package %s: %w", pkgPath, err)
-        }
-    }
+	if len(structs) > 0 {
+		if err := g.generatePackageFile(pkgPath, pkgName, structs); err != nil {
+			return fmt.Errorf("failed to generate file for package %s: %w", pkgPath, err)
+		}
+	}
 
-    return nil
+	return nil
 }
 
 // findResetStructs находит структуры с комментарием // generate:reset
 func (g *Generator) findResetStructs(pkgPath string) ([]templateEnum, string, error) {
-    fset := token.NewFileSet()
-    var structs []templateEnum
-    var pkgName string
+	fset := token.NewFileSet()
+	var structs []templateEnum
+	var pkgName string
 
-    entries, err := os.ReadDir(pkgPath)
-    if err != nil {
-        return nil, "", fmt.Errorf("failed to read package directory: %w", err)
-    }
+	entries, err := os.ReadDir(pkgPath)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to read package directory: %w", err)
+	}
 
-    for _, entry := range entries {
-        if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".go") {
-            continue
-        }
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".go") {
+			continue
+		}
 
-        if strings.HasSuffix(entry.Name(), "_test.go") || strings.HasSuffix(entry.Name(), ".gen.go") {
-            continue
-        }
+		if strings.HasSuffix(entry.Name(), "_test.go") || strings.HasSuffix(entry.Name(), ".gen.go") {
+			continue
+		}
 
-        filename := filepath.Join(pkgPath, entry.Name())
-        file, err := parser.ParseFile(fset, filename, nil, parser.ParseComments)
-        if err != nil {
-            return nil, "", fmt.Errorf("failed to parse file %s: %w", filename, err)
-        }
+		filename := filepath.Join(pkgPath, entry.Name())
+		file, err := parser.ParseFile(fset, filename, nil, parser.ParseComments)
+		if err != nil {
+			return nil, "", fmt.Errorf("failed to parse file %s: %w", filename, err)
+		}
 
-        if pkgName == "" {
-            pkgName = file.Name.Name
-        }
+		if pkgName == "" {
+			pkgName = file.Name.Name
+		}
 
-        ast.Inspect(file, func(n ast.Node) bool {
-            genDecl, ok := n.(*ast.GenDecl)
-            if !ok || genDecl.Tok != token.TYPE {
-                return true
-            }
+		ast.Inspect(file, func(n ast.Node) bool {
+			genDecl, ok := n.(*ast.GenDecl)
+			if !ok || genDecl.Tok != token.TYPE {
+				return true
+			}
 
-            hasResetComment := false
-            if genDecl.Doc != nil {
-                for _, comment := range genDecl.Doc.List {
-                    if strings.Contains(comment.Text, "generate:reset") {
-                        hasResetComment = true
-                        break
-                    }
-                }
-            }
+			hasResetComment := false
+			if genDecl.Doc != nil {
+				for _, comment := range genDecl.Doc.List {
+					if strings.Contains(comment.Text, "generate:reset") {
+						hasResetComment = true
+						break
+					}
+				}
+			}
 
-            if !hasResetComment {
-                return true
-            }
+			if !hasResetComment {
+				return true
+			}
 
-            for _, spec := range genDecl.Specs {
-                typeSpec, ok := spec.(*ast.TypeSpec)
-                if !ok {
-                    continue
-                }
+			for _, spec := range genDecl.Specs {
+				typeSpec, ok := spec.(*ast.TypeSpec)
+				if !ok {
+					continue
+				}
 
-                structType, ok := typeSpec.Type.(*ast.StructType)
-                if !ok {
-                    continue
-                }
+				structType, ok := typeSpec.Type.(*ast.StructType)
+				if !ok {
+					continue
+				}
 
-                structInfo := templateEnum{
-                    StructType: typeSpec.Name.Name,
-                    Entries:    g.collectStructFields(structType),
-                }
+				structInfo := templateEnum{
+					StructType: typeSpec.Name.Name,
+					Entries:    g.collectStructFields(structType),
+				}
 
-                structs = append(structs, structInfo)
-            }
+				structs = append(structs, structInfo)
+			}
 
-            return true
-        })
-    }
+			return true
+		})
+	}
 
-    return structs, pkgName, nil
+	return structs, pkgName, nil
 }
 
 // collectStructFields собирает информацию о полях структуры
