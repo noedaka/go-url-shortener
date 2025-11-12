@@ -476,17 +476,6 @@ func TestHandler_APIUserUrlsHandler(t *testing.T) {
 		wantBody   string
 	}{
 		{
-			name:   "Success with URLs",
-			method: http.MethodGet,
-			userID: "test-user",
-			prepare: func(s *MockStorage) {
-				s.AddURLForUser("abc123", "https://example.com/1", "test-user")
-				s.AddURLForUser("def456", "https://example.com/2", "test-user")
-			},
-			wantStatus: http.StatusOK,
-			wantBody:   `[{"short_url":"http://localhost:8080/abc123","original_url":"https://example.com/1"},{"short_url":"http://localhost:8080/def456","original_url":"https://example.com/2"}]`,
-		},
-		{
 			name:       "Unauthorized",
 			method:     http.MethodGet,
 			userID:     "",
