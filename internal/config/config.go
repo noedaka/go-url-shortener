@@ -3,7 +3,6 @@ package config
 import (
 	"flag"
 	"fmt"
-	"log"
 	"net"
 	"net/url"
 
@@ -28,12 +27,12 @@ const (
 	defaultFileStoragePath = "urls.json"
 )
 
-func Init() (*Config, bool) {
+func Init() (*Config, bool, error) {
 	cfg := &Config{}
 
 	err := env.Parse(cfg)
 	if err != nil {
-		log.Fatal(err)
+		return nil, false, err
 	}
 
 	flag.StringVar(&cfg.ServerAddress, "a", cfg.ServerAddress, "HTTP server adress")
@@ -52,14 +51,14 @@ func Init() (*Config, bool) {
 	}
 
 	if cfg.DatabaseDSN != "" {
-		return cfg, true
+		return cfg, true, nil
 	}
 
 	if cfg.FileStoragePath == "" {
 		cfg.FileStoragePath = defaultFileStoragePath
 	}
 
-	return cfg, false
+	return cfg, false, nil
 }
 
 func (cfg *Config) ValidateConfig() error {
