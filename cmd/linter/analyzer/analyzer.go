@@ -1,4 +1,4 @@
-package linter
+package analyzer
 
 import (
 	"go/ast"
@@ -15,24 +15,31 @@ var PanicFatalExitChecker = &analysis.Analyzer{
 func run(pass *analysis.Pass) (any, error) {
 	for _, file := range pass.Files {
 		ast.Inspect(file, func(n ast.Node) bool {
-			if callExpr, ok := n.(*ast.CallExpr); ok {
-				if ident, ok := callExpr.Fun.(*ast.Ident); ok {
-					if ident.Name == "panic" {
-						pass.Reportf(ident.Pos(), "panic call")
-					}
-				}
+			callExpr, ok := n.(*ast.CallExpr)
+			if !ok {
+				return true
+			}
 
-				if selExpr, ok := callExpr.Fun.(*ast.SelectorExpr); ok {
-					if ident, ok := selExpr.X.(*ast.Ident); ok {
-						if pass.Pkg.Name() != "main" {
-							if ident.Name == "log" && selExpr.Sel.Name == "Fatal" {
-								pass.Reportf(ident.Pos(), "log.Fatal call")
-							} else if ident.Name == "os" && selExpr.Sel.Name == "Exit" {
-								pass.Reportf(ident.Pos(), "os.Exit call")
-							}
-						}
-					}
-				}
+			if ident, ok := callExpr.Fun.(*ast.Ident); ok && ident.Name == "panic" {
+				pass.Reportf(ident.Pos(), "panic call")
+				return true
+			}
+
+			selExpr, ok := callExpr.Fun.(*ast.SelectorExpr)
+			if !ok || pass.Pkg.Name() == "main" {
+				return true
+			}
+
+			pkgIdent, ok := selExpr.X.(*ast.Ident)
+			if !ok {
+				return true
+			}
+
+			switch {
+			case pkgIdent.Name == "log" && selExpr.Sel.Name == "Fatal":
+				pass.Reportf(selExpr.Pos(), "log.Fatal call")
+			case pkgIdent.Name == "os" && selExpr.Sel.Name == "Exit":
+				pass.Reportf(selExpr.Pos(), "os.Exit call")
 			}
 
 			return true

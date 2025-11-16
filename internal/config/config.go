@@ -17,6 +17,7 @@ type Config struct {
 	DatabaseDSN     string `env:"DATABASE_DSN"`
 	AuditFile       string `env:"AUDIT_FILE"`
 	AuditURL        string `env:"AUDIT_URL"`
+	HasDatabase     bool
 }
 
 const UserIDKey model.ContextKey = "user_id"
@@ -27,12 +28,12 @@ const (
 	defaultFileStoragePath = "urls.json"
 )
 
-func Init() (*Config, bool, error) {
+func Init() (*Config, error) {
 	cfg := &Config{}
 
 	err := env.Parse(cfg)
 	if err != nil {
-		return nil, false, err
+		return nil, err
 	}
 
 	flag.StringVar(&cfg.ServerAddress, "a", cfg.ServerAddress, "HTTP server adress")
@@ -51,14 +52,15 @@ func Init() (*Config, bool, error) {
 	}
 
 	if cfg.DatabaseDSN != "" {
-		return cfg, true, nil
+		cfg.HasDatabase = true
+		return cfg, nil
 	}
 
 	if cfg.FileStoragePath == "" {
 		cfg.FileStoragePath = defaultFileStoragePath
 	}
 
-	return cfg, false, nil
+	return cfg, nil
 }
 
 func (cfg *Config) ValidateConfig() error {
