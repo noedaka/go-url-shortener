@@ -26,7 +26,11 @@ func Run() error {
 	}
 	logger.Log.Sync()
 
-	cfg, isDB := config.Init()
+	cfg, err := config.Init()
+	if err != nil {
+		return err
+	}
+
 	if err := cfg.ValidateConfig(); err != nil {
 		return err
 	}
@@ -61,7 +65,7 @@ func Run() error {
 	var db *sql.DB
 	var store storage.URLStorage
 
-	if isDB {
+	if cfg.HasDatabase {
 		var err error
 		db, err = sql.Open("pgx", cfg.DatabaseDSN)
 		if err != nil {
