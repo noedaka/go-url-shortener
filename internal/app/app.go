@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"net/http"
 	"net/http/pprof"
+	"path/filepath"
+	"runtime"
 
 	"github.com/go-chi/chi/v5"
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -127,9 +129,35 @@ func Run() error {
 		r.Get("/allocs", pprof.Handler("allocs").ServeHTTP)
 	})
 
-	if err := http.ListenAndServe(cfg.ServerAddress, r); err != nil {
-		return err
+	if cfg.EnableHTTPS != "" {
+		certFile, keyFile := getCertPaths()
+		err = http.ListenAndServeTLS(
+			cfg.ServerAddress,
+			certFile,
+			keyFile,
+			nil,
+		)
+		if err != nil {
+			return err
+		}
+
+	} else {
+		if err := http.ListenAndServe(cfg.ServerAddress, r); err != nil {
+			return err
+		}
 	}
 
 	return nil
+}
+
+func getCertPaths() (certFile, keyFile string) {
+	_, currentFile, _, _ := runtime.Caller(0)
+
+	projectRoot := filepath.Dir(filepath.Dir(filepath.Dir(currentFile)))
+
+	certsDir := filepath.Join(projectRoot, "cmd", "tls", "certs")
+	certFile = filepath.Join(certsDir, "cert.pem")
+	keyFile = filepath.Join(certsDir, "private.pem")
+
+	return
 }

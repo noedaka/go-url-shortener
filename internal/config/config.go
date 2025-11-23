@@ -17,7 +17,9 @@ type Config struct {
 	DatabaseDSN     string `env:"DATABASE_DSN"`
 	AuditFile       string `env:"AUDIT_FILE"`
 	AuditURL        string `env:"AUDIT_URL"`
-	HasDatabase     bool
+	EnableHTTPS     string `env:"ENABLE_HTTPS"`
+
+	HasDatabase bool
 }
 
 const UserIDKey model.ContextKey = "user_id"
@@ -42,6 +44,7 @@ func Init() (*Config, error) {
 	flag.StringVar(&cfg.DatabaseDSN, "d", cfg.DatabaseDSN, "Database DSN")
 	flag.StringVar(&cfg.AuditFile, "audit-file", cfg.AuditFile, "Audit file")
 	flag.StringVar(&cfg.AuditURL, "audit-url", cfg.AuditURL, "Audit URL")
+	flag.StringVar(&cfg.EnableHTTPS, "s", cfg.EnableHTTPS, "Enable HTTPS")
 	flag.Parse()
 
 	if cfg.ServerAddress == "" {
