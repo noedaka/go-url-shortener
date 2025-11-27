@@ -129,7 +129,7 @@ func Run() error {
 		r.Get("/allocs", pprof.Handler("allocs").ServeHTTP)
 	})
 
-	if cfg.EnableHTTPS != "" {
+	if cfg.EnableHTTPS {
 		certFile, keyFile := getCertPaths()
 		err = http.ListenAndServeTLS(
 			cfg.ServerAddress,
