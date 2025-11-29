@@ -1,9 +1,16 @@
 package app
 
 import (
+	"context"
 	"database/sql"
 	"net/http"
 	"net/http/pprof"
+	"os"
+	"os/signal"
+	"path/filepath"
+	"runtime"
+	"syscall"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -127,9 +134,60 @@ func Run() error {
 		r.Get("/allocs", pprof.Handler("allocs").ServeHTTP)
 	})
 
-	if err := http.ListenAndServe(cfg.ServerAddress, r); err != nil {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	srv := http.Server{Addr: cfg.ServerAddress, Handler: r}
+
+	serverErr := make(chan error, 1)
+	go func() {
+		if cfg.EnableHTTPS {
+			certFile, keyFile := getCertPaths()
+			serverErr <- srv.ListenAndServeTLS(certFile, keyFile)
+		} else {
+			serverErr <- srv.ListenAndServe()
+		}
+	}()
+
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
+
+	select {
+	case err := <-serverErr:
+		// Сервер сам завершился с ошибкой
 		return err
+	case sig := <-sigChan:
+		// Получен сигнал на завершение
+		logger.Log.Info("received signal, starting graceful shutdown",
+			zap.String("signal", sig.String()))
+
+		shutdownCtx, shutdownCancel := context.WithTimeout(ctx, 30*time.Second)
+		defer shutdownCancel()
+
+		if err := srv.Shutdown(shutdownCtx); err != nil {
+			logger.Log.Error("server shutdown error", zap.Error(err))
+			// Принудительное закрытие сервера
+			if err := srv.Close(); err != nil {
+				logger.Log.Error("server force close error", zap.Error(err))
+			}
+
+			return err
+		}
+
+		logger.Log.Info("server stopped gracefully")
 	}
 
 	return nil
+}
+
+func getCertPaths() (certFile, keyFile string) {
+	_, currentFile, _, _ := runtime.Caller(0)
+
+	projectRoot := filepath.Dir(filepath.Dir(filepath.Dir(currentFile)))
+
+	certsDir := filepath.Join(projectRoot, "cmd", "tls", "certs")
+	certFile = filepath.Join(certsDir, "cert.pem")
+	keyFile = filepath.Join(certsDir, "private.pem")
+
+	return
 }
