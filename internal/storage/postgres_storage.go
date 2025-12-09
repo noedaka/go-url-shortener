@@ -101,6 +101,24 @@ func (ps *PostgresStorage) DeleteByUser(ctx context.Context, userID string, shor
 	return nil
 }
 
+func (ps *PostgresStorage) GetStats(ctx context.Context) (*model.Stats, error) {
+	stats := &model.Stats{}
+
+	err := ps.db.QueryRowContext(ctx,
+		"SELECT COUNT(*) FROM urls").Scan(&stats.URLs)
+	if err != nil {
+		return nil, err
+	}
+
+	err = ps.db.QueryRowContext(ctx,
+		"SELECT COUNT(DISTINCT user_id) FROM urls").Scan(&stats.Users)
+	if err != nil {
+		return nil, err
+	}
+
+	return stats, nil
+}
+
 func (ps *PostgresStorage) updateDeletedForURLs(ctx context.Context, userID string, urls []string) error {
 	tx, err := ps.db.BeginTx(ctx, nil)
 	if err != nil {

@@ -89,6 +89,10 @@ func (s *ShortenerService) ShortenMultipleURLS(ctx context.Context, batchRequest
 	return batchResponse, nil
 }
 
+func (s *ShortenerService) GetStats(ctx context.Context) (*model.Stats, error) {
+	return s.storage.GetStats(ctx)
+}
+
 func (s *ShortenerService) generateShortID() string {
 	const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 	b := make([]byte, 6)

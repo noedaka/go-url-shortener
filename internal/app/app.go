@@ -110,9 +110,23 @@ func Run() error {
 				r.Post("/", handlerURL.APIShortenerHandler)
 				r.Post("/batch", handlerURL.ShortenBatchHandler)
 			})
+
 			r.Route("/user/urls", func(r chi.Router) {
 				r.Get("/", handlerURL.APIUserUrlsHandler)
 				r.Delete("/", handlerURL.APIDeleteShortURLSHandler)
+			})
+
+			r.Route("/internal", func(r chi.Router) {
+				r.Use(func(next http.Handler) http.Handler {
+					return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+						if cfg.TrustedSubnet == "" {
+							http.Error(w, "Service unavailable", http.StatusServiceUnavailable)
+							return
+						}
+						next.ServeHTTP(w, r)
+					})
+				})
+				r.Get("/stats", handlerURL.StatsHandler(cfg.TrustedSubnet))
 			})
 		})
 		r.Post("/", handlerURL.ShortenURLHandler)

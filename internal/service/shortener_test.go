@@ -39,6 +39,10 @@ func (m *MockStorage) DeleteByUser(ctx context.Context, userID string, shortURL 
 	return nil
 }
 
+func (m *MockStorage) GetStats(ctx context.Context) (*model.Stats, error) {
+	return nil, nil
+}
+
 func TestShortenerService(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -196,6 +200,10 @@ type FakeStorageWithUserData struct {
 	data     map[string]string
 	userURLs map[string][]model.URLPair
 	baseURL  string
+}
+
+func (m *FakeStorageWithUserData) GetStats(ctx context.Context) (*model.Stats, error) {
+	return nil, nil
 }
 
 func NewFakeStorageWithUserData() *FakeStorageWithUserData {

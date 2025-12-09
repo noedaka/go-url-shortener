@@ -117,6 +117,10 @@ func (m *MockStorage) DeleteByUser(ctx context.Context, userID string, shortURLs
 	return nil
 }
 
+func (m *MockStorage) GetStats(ctx context.Context) (*model.Stats, error) {
+	return nil, nil
+}
+
 func (m *MockStorage) ResetDeletedArgs() {
 	m.deletedArgs = nil
 }

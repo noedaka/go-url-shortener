@@ -43,6 +43,10 @@ func (m *ExampleMockStorage) Get(ctx context.Context, shortURL string) (string, 
 	return url, nil
 }
 
+func (m *ExampleMockStorage) GetStats(ctx context.Context) (*model.Stats, error) {
+	return nil, nil
+}
+
 func (m *ExampleMockStorage) GetByUser(ctx context.Context, userID string) ([]model.URLPair, error) {
 	userURLs, exists := m.users[userID]
 	if !exists {

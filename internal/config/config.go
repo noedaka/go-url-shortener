@@ -24,6 +24,7 @@ type Config struct {
 	AuditURL        string `env:"AUDIT_URL" json:"audit_url"`
 	EnableHTTPS     bool   `env:"ENABLE_HTTPS" json:"enable_https"`
 	ConfigFile      string `env:"CONFIG"`
+	TrustedSubnet   string `env:"TRUSTED_SUBNET" json:"trusted_subnets"`
 
 	HasDatabase bool
 }
@@ -80,6 +81,7 @@ func (cfg *Config) bindFlags() {
 	flag.StringVar(&cfg.AuditURL, "audit-url", cfg.AuditURL, "Audit URL")
 	flag.BoolVar(&cfg.EnableHTTPS, "s", cfg.EnableHTTPS, "Enable HTTPS")
 	flag.StringVar(&cfg.ConfigFile, "c", cfg.ConfigFile, "Config file path")
+	flag.StringVar(&cfg.TrustedSubnet, "t", cfg.TrustedSubnet, "Trusted subnet")
 }
 
 func (cfg *Config) readConfigFile() (*Config, error) {
