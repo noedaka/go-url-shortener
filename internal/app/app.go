@@ -17,6 +17,7 @@ import (
 	"github.com/noedaka/go-url-shortener/internal/audit"
 	"github.com/noedaka/go-url-shortener/internal/config"
 	dbc "github.com/noedaka/go-url-shortener/internal/config/db"
+	"github.com/noedaka/go-url-shortener/internal/grpc"
 	"github.com/noedaka/go-url-shortener/internal/handler"
 	"github.com/noedaka/go-url-shortener/internal/logger"
 	"github.com/noedaka/go-url-shortener/internal/middleware"
@@ -147,6 +148,9 @@ func Run() error {
 		r.Get("/threadcreate", pprof.Handler("threadcreate").ServeHTTP)
 		r.Get("/allocs", pprof.Handler("allocs").ServeHTTP)
 	})
+
+	GRPCServer := grpc.NewGRPCServer(*cfg, *service)
+	GRPCServer.StartServer()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
