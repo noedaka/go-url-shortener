@@ -17,6 +17,7 @@ import (
 	"github.com/noedaka/go-url-shortener/internal/audit"
 	"github.com/noedaka/go-url-shortener/internal/config"
 	dbc "github.com/noedaka/go-url-shortener/internal/config/db"
+	"github.com/noedaka/go-url-shortener/internal/grpc"
 	"github.com/noedaka/go-url-shortener/internal/handler"
 	"github.com/noedaka/go-url-shortener/internal/logger"
 	"github.com/noedaka/go-url-shortener/internal/middleware"
@@ -110,9 +111,23 @@ func Run() error {
 				r.Post("/", handlerURL.APIShortenerHandler)
 				r.Post("/batch", handlerURL.ShortenBatchHandler)
 			})
+
 			r.Route("/user/urls", func(r chi.Router) {
 				r.Get("/", handlerURL.APIUserUrlsHandler)
 				r.Delete("/", handlerURL.APIDeleteShortURLSHandler)
+			})
+
+			r.Route("/internal", func(r chi.Router) {
+				r.Use(func(next http.Handler) http.Handler {
+					return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+						if cfg.TrustedSubnet == "" {
+							http.Error(w, "Service unavailable", http.StatusServiceUnavailable)
+							return
+						}
+						next.ServeHTTP(w, r)
+					})
+				})
+				r.Get("/stats", handlerURL.StatsHandler(cfg.TrustedSubnet))
 			})
 		})
 		r.Post("/", handlerURL.ShortenURLHandler)
@@ -133,6 +148,9 @@ func Run() error {
 		r.Get("/threadcreate", pprof.Handler("threadcreate").ServeHTTP)
 		r.Get("/allocs", pprof.Handler("allocs").ServeHTTP)
 	})
+
+	GRPCServer := grpc.NewGRPCServer(*cfg, *service)
+	GRPCServer.StartServer()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

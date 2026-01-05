@@ -18,4 +18,6 @@ type URLStorage interface {
 	GetByUser(ctx context.Context, userID string) ([]model.URLPair, error)
 	// DeleteByUser удаляет сокращенные URL указанного пользователя
 	DeleteByUser(ctx context.Context, userID string, shortURL []string) error
+	// GetStats возвращает количество сокращенных юрлов и количество пользователей
+	GetStats(ctx context.Context) (*model.Stats, error)
 }

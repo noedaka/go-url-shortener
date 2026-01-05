@@ -176,3 +176,7 @@ func (fs *FileStorage) appendRecord(record record) error {
 	_, err = file.Write([]byte("]"))
 	return err
 }
+
+func (fs *FileStorage) GetStats(ctx context.Context) (*model.Stats, error) {
+	return nil, nil
+}

@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"net"
 	"net/http"
 	"time"
 
@@ -243,6 +244,45 @@ func (h *Handler) PingDBHandler(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 	}
 	w.WriteHeader(http.StatusOK)
+}
+
+func (h *Handler) StatsHandler(trustedSubnet string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		ipStr := r.Header.Get("X-Real-IP")
+		ip := net.ParseIP(ipStr)
+
+		if ip == nil || !isIPInSubnet(ip, trustedSubnet) {
+			http.Error(w, "Forbidden", http.StatusForbidden)
+			return
+		}
+
+		stats, err := h.service.GetStats(r.Context())
+		if err != nil {
+			http.Error(w, "Error getting stats", http.StatusInternalServerError)
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+
+		enc := json.NewEncoder(w)
+		if err := enc.Encode(stats); err != nil {
+			http.Error(w, "error encoding response", http.StatusInternalServerError)
+			return
+		}
+	}
+}
+
+func isIPInSubnet(ip net.IP, subnet string) bool {
+	if checkIP := net.ParseIP(subnet); checkIP != nil {
+		return ip.Equal(checkIP)
+	}
+
+	_, network, err := net.ParseCIDR(subnet)
+	if err != nil {
+		return false
+	}
+
+	return network.Contains(ip)
 }
 
 func (h *Handler) handleShortenError(w http.ResponseWriter, err error, contentType string) (handled bool) {

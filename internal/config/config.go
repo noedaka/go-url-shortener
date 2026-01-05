@@ -16,14 +16,16 @@ import (
 const UserIDKey model.ContextKey = "user_id"
 
 type Config struct {
-	ServerAddress   string `env:"SERVER_ADDRESS" json:"server_address"`
-	BaseURL         string `env:"BASE_URL" json:"base_url"`
-	FileStoragePath string `env:"FILE_STORAGE_PATH" json:"file_storage_path"`
-	DatabaseDSN     string `env:"DATABASE_DSN" json:"database_dsn"`
-	AuditFile       string `env:"AUDIT_FILE" json:"audit_file"`
-	AuditURL        string `env:"AUDIT_URL" json:"audit_url"`
-	EnableHTTPS     bool   `env:"ENABLE_HTTPS" json:"enable_https"`
-	ConfigFile      string `env:"CONFIG"`
+	ServerAddress     string `env:"SERVER_ADDRESS" json:"server_address"`
+	GRPCServerAddress string `env:"GRPC_SERVER_ADDRESS" json:"grpc_server_address"`
+	BaseURL           string `env:"BASE_URL" json:"base_url"`
+	FileStoragePath   string `env:"FILE_STORAGE_PATH" json:"file_storage_path"`
+	DatabaseDSN       string `env:"DATABASE_DSN" json:"database_dsn"`
+	AuditFile         string `env:"AUDIT_FILE" json:"audit_file"`
+	AuditURL          string `env:"AUDIT_URL" json:"audit_url"`
+	EnableHTTPS       bool   `env:"ENABLE_HTTPS" json:"enable_https"`
+	ConfigFile        string `env:"CONFIG"`
+	TrustedSubnet     string `env:"TRUSTED_SUBNET" json:"trusted_subnets"`
 
 	HasDatabase bool
 }
@@ -69,10 +71,15 @@ func (cfg *Config) setDefaults() {
 	if cfg.FileStoragePath == "" {
 		cfg.FileStoragePath = "urls.json"
 	}
+
+	if cfg.GRPCServerAddress == "" {
+		cfg.GRPCServerAddress = ":3020"
+	}
 }
 
 func (cfg *Config) bindFlags() {
-	flag.StringVar(&cfg.ServerAddress, "a", cfg.ServerAddress, "HTTP server adress")
+	flag.StringVar(&cfg.ServerAddress, "a", cfg.ServerAddress, "HTTP server address")
+	flag.StringVar(&cfg.GRPCServerAddress, "g", cfg.GRPCServerAddress, "gRPC server address")
 	flag.StringVar(&cfg.BaseURL, "b", cfg.BaseURL, "Base URL")
 	flag.StringVar(&cfg.FileStoragePath, "f", cfg.FileStoragePath, "File storage path")
 	flag.StringVar(&cfg.DatabaseDSN, "d", cfg.DatabaseDSN, "Database DSN")
@@ -80,6 +87,7 @@ func (cfg *Config) bindFlags() {
 	flag.StringVar(&cfg.AuditURL, "audit-url", cfg.AuditURL, "Audit URL")
 	flag.BoolVar(&cfg.EnableHTTPS, "s", cfg.EnableHTTPS, "Enable HTTPS")
 	flag.StringVar(&cfg.ConfigFile, "c", cfg.ConfigFile, "Config file path")
+	flag.StringVar(&cfg.TrustedSubnet, "t", cfg.TrustedSubnet, "Trusted subnet")
 }
 
 func (cfg *Config) readConfigFile() (*Config, error) {

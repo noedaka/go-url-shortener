@@ -49,6 +49,11 @@ type AuditEvent struct {
 	URL    string `json:"url"`
 }
 
+type Stats struct {
+	URLs  int `json:"urls"`
+	Users int `json:"users"`
+}
+
 func (e *UniqueViolationError) Error() string {
 	return "unique violation"
 }
